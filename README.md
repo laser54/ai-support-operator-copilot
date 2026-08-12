@@ -85,9 +85,46 @@ uv run ruff check .
 uv run mypy app
 ```
 
+## PostgreSQL and migrations
+
+The repository now includes a PostgreSQL persistence foundation. It stores the
+minimal durable `cases` record; typed workflow state, reviews, and audit events
+are added in later roadmap phases.
+
+Start the local stack (PostgreSQL is exposed on port `55432` to avoid common
+local PostgreSQL port conflicts):
+
+```powershell
+docker compose up --build
+```
+
+For a locally managed PostgreSQL instance, set `DATABASE_URL` and apply the
+schema:
+
+```powershell
+uv run alembic upgrade head
+```
+
+The PostgreSQL repository integration test runs only when `TEST_DATABASE_URL`
+is set. It must name a dedicated disposable database because the test truncates
+the `cases` table before it runs. A repeatable local command sequence is:
+
+```powershell
+docker compose up -d db
+# create a separate test database named copilot_test in that container
+$env:TEST_DATABASE_URL = "postgresql+psycopg://copilot:copilot@localhost:55432/copilot_test"
+$env:DATABASE_URL = $env:TEST_DATABASE_URL
+uv run alembic upgrade head
+uv run pytest -q
+docker compose down --volumes
+```
+
 ## Status
 
-**Scaffolded.** The repository currently defines the product and delivery contract. Implementation starts with a test-first vertical slice: `POST /cases` creates an incident case, retrieves fixture evidence, produces an action proposal, and stops at `awaiting_human_review` without executing it.
+**Persistence foundation implemented.** FastAPI health checks and the baseline
+PostgreSQL/Alembic case repository are available. The next planned vertical
+slice starts with typed domain contracts and synthetic fixtures; `POST /cases`
+and the workflow remain planned.
 
 ## Related work
 

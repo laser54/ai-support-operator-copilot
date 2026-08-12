@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: copilot
+      POSTGRES_USER: copilot
+      POSTGRES_PASSWORD: copilot
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U copilot -d copilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://copilot:copilot@db:5432/copilot
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:

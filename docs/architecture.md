@@ -125,6 +125,20 @@ The system records both the pre-review proposal and effective post-review values
 
 PostgreSQL is the target datastore because it supports durable case state, audit records and future LangGraph checkpoint persistence. The first implementation may use a replaceable in-memory repository for fast unit tests, but its public repository interface must match the PostgreSQL implementation.
 
+### Implemented persistence foundation
+
+The application currently has a SQLAlchemy 2 repository and Alembic baseline
+migration for the `cases` table. `CaseRecord` persists only `id`,
+`raw_request`, `status`, `created_at`, and `updated_at`; it deliberately does
+not yet expose a case API or claim to persist the future domain contract.
+
+`CaseRepository.create` commits and refreshes the record, while `get` reloads
+it by UUID. The integration test uses a separate database selected through
+`TEST_DATABASE_URL` and truncates only that database's `cases` table. Docker
+Compose supplies PostgreSQL 16 and starts the API only after the database
+health check passes; the API container runs `alembic upgrade head` before
+Uvicorn starts.
+
 ## Observability
 
 The MVP uses its own persisted audit events as the source of truth for the user-visible trace. Optional OpenTelemetry/Langfuse integration can be added later, but it must not replace application-level evidence, policy decisions or approval records.

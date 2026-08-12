@@ -6,8 +6,8 @@ This document is the authoritative sequential implementation guide for the repos
 
 **Current milestone:** MVP vertical slice
 
-**Current phase:** 2 — PostgreSQL foundation
-**Overall status:** in progress
+**Current phase:** 3 — Domain contracts and fixtures
+**Overall status:** ready to begin
 
 ## Status legend
 
@@ -63,7 +63,7 @@ Verification: `uv sync --all-groups` completed with CPython 3.12.13; `uv run pyt
 Documentation: Updated `README.md` and this roadmap; added `.env.example`.
 Follow-up: Begin phase 2 with PostgreSQL, SQLAlchemy, Alembic, Docker Compose, and an isolated integration-test database.
 
-### 2. PostgreSQL foundation — not started
+### 2. PostgreSQL foundation — completed
 
 **Dependencies:** phase 1 completed.
 
@@ -72,6 +72,12 @@ Follow-up: Begin phase 2 with PostgreSQL, SQLAlchemy, Alembic, Docker Compose, a
 **Acceptance criteria:** migrations apply to a clean PostgreSQL instance; repository smoke tests persist and reload data; integration tests use an isolated database.
 
 **Required documentation updates:** `README.md` database, Compose, and migration commands; `docs/architecture.md` persistence implementation; this roadmap completion record.
+
+Completed: 2026-08-12
+Scope: Added a PostgreSQL 16 Docker Compose service and API container, SQLAlchemy 2 persistence foundation, `CaseRepository`, Alembic baseline migration for `cases`, and a PostgreSQL-only repository integration test.
+Verification: With `DATABASE_URL=postgresql+psycopg://copilot:copilot@localhost:55432/copilot_test`, `uv run alembic upgrade head` applied revision `20260812_01`; `uv run pytest -q` passed (2 tests); `uv run ruff check .` passed; `uv run mypy app` passed.
+Documentation: Updated `README.md`, `docs/architecture.md`, and this roadmap.
+Follow-up: Define typed domain contracts and deterministic synthetic fixtures in phase 3; extend persistence only when those contracts require it.
 
 ### 3. Domain contracts and fixtures — not started
 
@@ -144,10 +150,6 @@ Follow-up: Begin phase 2 with PostgreSQL, SQLAlchemy, Alembic, Docker Compose, a
 **Required documentation updates:** `README.md` frontend setup/deployment; `docs/architecture.md` browser/API trust boundary and CORS policy; `docs/demo.md` reviewer UI demo; this roadmap completion record.
 
 **Hosting constraints:** Vercel Hobby is free but restricted to non-commercial personal use. Deploy only frontend/static assets there; keep FastAPI, PostgreSQL, LLM keys, and all write-policy enforcement outside the browser and outside Vercel client bundles. Re-check current Vercel limits and terms before deploying because they can change.
-
-## Completion records
-
-No implementation phase has been completed yet.
 
 ## MVP boundaries
 

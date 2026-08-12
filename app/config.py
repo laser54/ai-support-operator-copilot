@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_base_url: str | None = None
     llm_model: str | None = None
+    database_url: str = "postgresql+psycopg://copilot:copilot@localhost:5432/copilot"
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="", extra="ignore")
 
