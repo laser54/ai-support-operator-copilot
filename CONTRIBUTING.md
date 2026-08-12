@@ -31,7 +31,8 @@ For every behavioral change:
 2. run it and confirm it fails for the expected missing behavior;
 3. add the smallest implementation that passes it;
 4. run the focused test, then the full suite;
-5. update documentation when an API or behavior changes.
+5. update documentation when an API or behavior changes;
+6. update [docs/implementation-plan.md](docs/implementation-plan.md) with the phase status and verification evidence.
 
 Required test categories for the MVP:
 
@@ -49,3 +50,4 @@ Required test categories for the MVP:
 - no secrets, real customer data or external side effects are introduced;
 - trace/audit semantics remain intact;
 - README or `docs/` explains any externally visible behavior.
+- `docs/implementation-plan.md` marks the delivered phase accurately and includes its completion record (scope, exact verification, documentation updates, and follow-up).
