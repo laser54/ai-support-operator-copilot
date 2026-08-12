@@ -193,6 +193,12 @@ read-only reviewer workspace, 9.5 edits and decision gate, 9.6 trace, 9.7
 end-to-end quality, and 9.8 deployment/handoff. Complete and verify each
 subphase before starting the next one.
 
+During subphase 9.2, use the mapped [Beautiful UI](https://www.beautifului.dev/)
+patterns for loading, workflow status, recommendations, evidence context,
+human approval, and trace filtering. Follow the adaptation and exclusion rules
+in `docs/frontend-plan.md`; the reference must not turn the reviewer workspace
+into a chat interface or expose hidden model reasoning.
+
 **Interface principle:** the UI must foreground the Request → Evidence → Brief
 → Human gate → Audit workflow. It must not present the product as a generic
 chatbot or hide facts, inferences, missing information, action state, or trace.

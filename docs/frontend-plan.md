@@ -72,6 +72,50 @@ marketplace, or a large design-system dependency for the first slice. The
 frontend owns presentation and temporary form state; FastAPI remains the source
 of truth for cases, approvals, execution, and trace order.
 
+### Beautiful UI reference patterns
+
+[Beautiful UI](https://www.beautifului.dev/) is the preferred interaction and
+visual reference for AI-native components that overlap this product. It is a
+reference, not a required runtime dependency or a license to copy code. Before
+reusing implementation code or assets, verify their current license and terms.
+Rebuild the selected patterns with this project's tokens, semantics, API data,
+and accessibility requirements.
+
+Use or adapt these catalog patterns when implementing the corresponding UI:
+
+| Beautiful UI pattern | Project use | Required adaptation |
+| --- | --- | --- |
+| Loading State | Case intake analysis and independent trace loading | Show only stages and elapsed state supported by the API. Use a section-shaped skeleton for initial case loading, stop motion when the request settles, and provide an accessible text status. |
+| Task Rows | Workflow rail and compact trace progress summary | Map rows to the real Request, Evidence, Brief, Human review, Outcome, and audit events. Preserve backend order and use text plus icons for running, completed, failed, and waiting states. |
+| Approval Card | Human review gate and explicit approve/reject confirmation | Keep approve and reject equally understandable, show the exact proposed action and consequences, require an explicit decision, and keep keyboard focus behavior compliant. Never execute from a purely client-side state change. |
+| Recommendation Card | Proposed action card | Use the clear hierarchy, alternatives, and primary action layout. Replace any generic confidence meter with evidence strength, policy result, and uncertainty text derived from the API; confidence must never imply authorization. |
+| Context Cards | Evidence and source cards | Show source type, fixture label, retrieval reason, relevant excerpt, and stable source ID. Keep facts visually distinct from inferences and missing information. |
+| Filter Table | Audit trace filters | Adapt status chips into event-category filters with visible counts. Filtering must not reorder, merge, or mutate the authoritative trace. |
+| Records Table | A future case list only if the bounded case-list API is added | Use responsive rows, sortable columns, and explicit status labels. Do not add this pattern to the first single-case slice or persist a browser-only case index. |
+| Search | A future case or audit search only when the backend supports it | Provide keyboard navigation, a clear empty state, and server-backed results. Do not ship a decorative command palette with no authoritative data source. |
+| Sidebar Nav | Workspace navigation only after the product has multiple durable top-level destinations | Retain its compact hierarchy and quick-action clarity, but use the workflow rail for the first MVP instead of introducing an unnecessary permanent sidebar. |
+| Streaming Text | Provider output only if a future API exposes real streaming | Preserve inline sources and completion actions, announce updates without overwhelming screen readers, and provide a stable completed view. Do not simulate streaming for the current synchronous API. |
+
+The following catalog patterns are intentionally not part of the first slice:
+
+- **Thinking** must not expose hidden chain-of-thought. If diagnostic progress is
+  later needed, show concise, backend-provided stage summaries or tool results;
+- **Chat** and **Prompt Bar** must not become the primary shell because this is a
+  structured evidence-and-review workspace, not a generic chatbot;
+- **Tool Chips** may be reconsidered for trace summaries, but only when each chip
+  maps to an actual auditable tool event rather than decorative agent activity;
+- **Diff Table** is useful only after the API exposes structured before/after
+  edits; the current editable brief should use normal form fields and review;
+- **Insight Cards**, **Fine-tune Card**, and **Selection Actions** do not match the
+  MVP workflow and should not be introduced as ornamental features.
+
+Borrow Beautiful UI's strongest visual qualities: restrained dark or light
+surfaces, compact hierarchy, subtle borders, clearly grouped actions, readable
+status labels, and generous space around the active decision. Do not copy its
+demo content, dark theme values, density, animation, or component geometry
+verbatim. The project token system, WCAG 2.2 AA requirements, responsive rules,
+and security boundary in this document take precedence.
+
 ### Proposed repository layout
 
 ```text
@@ -402,6 +446,9 @@ Deliver:
 - color, type, spacing, radius, elevation, and focus tokens;
 - Button, Badge, Card, TextField, TextArea, Dialog, Callout, Skeleton, and
   visually-hidden primitives;
+- implement the relevant Beautiful UI reference patterns through local
+  primitives: Loading State, Task Rows, Approval Card, Recommendation Card,
+  Context Cards, and Filter Table;
 - responsive header, content container, and error boundary;
 - Storybook is optional and should be added only if component development needs
   it; a dedicated `/dev/components` route is sufficient for the MVP.
@@ -410,7 +457,10 @@ Acceptance:
 
 - primitives cover keyboard, hover, focus, disabled, loading, and error states;
 - contrast and zoom checks pass for the chosen theme;
-- no page-specific hard-coded status colors bypass tokens.
+- no page-specific hard-coded status colors bypass tokens;
+- every adopted Beautiful UI pattern satisfies the adaptation rules above and
+  has a documented keyboard, screen-reader, reduced-motion, and narrow-screen
+  state.
 
 ### Step 9.3 — Product entry and intake
 
@@ -535,6 +585,10 @@ honest about synthetic fixtures, mock execution, offline fallback, absent auth,
 and non-production status.
 
 ## External implementation references
+
+- [Beautiful UI](https://www.beautifului.dev/) — interaction and visual
+  reference for the explicitly mapped AI-native patterns; verify licensing
+  before reusing implementation code or assets.
 
 - [Vite React/TypeScript setup](https://vite.dev/guide/)
 - [TanStack Query for React](https://tanstack.com/query/latest/docs/framework/react/overview)
