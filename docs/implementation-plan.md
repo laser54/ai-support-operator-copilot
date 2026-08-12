@@ -4,8 +4,9 @@
 
 This document is the authoritative sequential implementation guide for the repository. The product, architecture, and demo documents define the intended behavior; this roadmap records what has actually been implemented and what must happen next.
 
-**Current milestone:** MVP vertical slice  
-**Current phase:** 1 — Project foundation  
+**Current milestone:** MVP vertical slice
+
+**Current phase:** 2 — PostgreSQL foundation
 **Overall status:** in progress
 
 ## Status legend
@@ -46,15 +47,21 @@ Resolution: condition required to resume
 
 ## Sequential phases
 
-### 1. Project foundation — in progress
+### 1. Project foundation — completed
 
 **Dependencies:** none.
 
-**Deliverables:** Python 3.12 package configuration; FastAPI application skeleton; typed settings; `.env.example`; dependency and development tooling for linting, typing, and tests.
+**Deliverables:** Python 3.12 package configuration managed with `uv`; FastAPI application skeleton; typed settings; `.env.example`; dependency and development tooling for linting, typing, and tests.
 
-**Acceptance criteria:** the application imports and starts locally; settings load without requiring LLM credentials; a basic health/API test passes; tooling commands are documented and runnable from a fresh checkout.
+**Acceptance criteria:** `uv sync --all-groups` creates the Python 3.12 environment; the application imports and starts locally; settings load without requiring LLM credentials; a basic health/API test passes; tooling commands are documented and runnable from a fresh checkout.
 
 **Required documentation updates:** `README.md` setup and run instructions; this roadmap completion record; any new configuration reference.
+
+Completed: 2026-08-12
+Scope: Added Python 3.12 `uv` package configuration and lockfile, FastAPI application skeleton with `GET /health`, typed optional LLM settings, environment template, ignore rules, and pytest/Ruff/mypy tooling.
+Verification: `uv sync --all-groups` completed with CPython 3.12.13; `uv run pytest -q` passed (1 test); `uv run ruff check .` passed; `uv run mypy app` passed; settings/application import check passed.
+Documentation: Updated `README.md` and this roadmap; added `.env.example`.
+Follow-up: Begin phase 2 with PostgreSQL, SQLAlchemy, Alembic, Docker Compose, and an isolated integration-test database.
 
 ### 2. PostgreSQL foundation — not started
 
@@ -116,15 +123,27 @@ Resolution: condition required to resume
 
 **Required documentation updates:** `README.md` implemented endpoint surface; `docs/architecture.md` approval and idempotency details; `docs/demo.md` full review/approve/reject path; this roadmap completion record.
 
-### 8. Acceptance hardening and delivery — not started
+### 8. Acceptance hardening and API delivery — not started
 
 **Dependencies:** phase 7 completed.
 
-**Deliverables:** complete API, integration, and negative-path test suite; verified Docker workflow; GitHub Actions; executable demo instructions; final documentation audit.
+**Deliverables:** complete API, integration, and negative-path test suite; verified Docker workflow; GitHub Actions; executable API demo instructions; final API documentation audit.
 
-**Acceptance criteria:** all documented MVP acceptance tests pass; Compose starts a clean demo environment; CI runs the relevant checks; the demo can be followed through `/docs` without credentials; documentation has no stale planned/implemented claims.
+**Acceptance criteria:** all documented MVP acceptance tests pass; Compose starts a clean demo environment; CI runs the relevant checks; the API demo can be followed through `/docs` without credentials; documentation has no stale planned/implemented claims.
 
 **Required documentation updates:** `README.md`, `docs/architecture.md`, `docs/demo.md`, and this roadmap completion record.
+
+### 9. Reviewer frontend and Vercel Hobby deployment — not started
+
+**Dependencies:** phase 8 completed.
+
+**Deliverables:** a thin reviewer UI for case intake, case state, trace inspection, edits, approval, and rejection; a static/frontend deployment configuration for Vercel Hobby; documented API base-URL configuration and deployment steps.
+
+**Acceptance criteria:** the deployed frontend can use the documented API without exposing provider or database credentials; it supports the API MVP demo flow; build succeeds on Vercel Hobby; its expected usage remains within the current Hobby plan's non-commercial, personal-use terms and service limits.
+
+**Required documentation updates:** `README.md` frontend setup/deployment; `docs/architecture.md` browser/API trust boundary and CORS policy; `docs/demo.md` reviewer UI demo; this roadmap completion record.
+
+**Hosting constraints:** Vercel Hobby is free but restricted to non-commercial personal use. Deploy only frontend/static assets there; keep FastAPI, PostgreSQL, LLM keys, and all write-policy enforcement outside the browser and outside Vercel client bundles. Re-check current Vercel limits and terms before deploying because they can change.
 
 ## Completion records
 
@@ -132,5 +151,4 @@ No implementation phase has been completed yet.
 
 ## MVP boundaries
 
-The roadmap does not authorize a frontend, authentication, real ticketing or other production integrations, autonomous writes, a vector database, or real customer data. Those items remain out of scope until the documented MVP is complete.
-
+The roadmap does not authorize authentication, real ticketing or other production integrations, autonomous writes, a vector database, or real customer data. The thin reviewer frontend is deferred to phase 9, after the API MVP is complete; it does not broaden the product boundary.

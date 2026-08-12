@@ -75,7 +75,10 @@ docs/
 - No auto-send, auto-ticket creation or other external side effects.
 - No web scraping or production integrations in the MVP.
 - No “agent memory” feature until persisted case/audit state works.
-- No premature vector DB, auth or React dashboard.
+- No premature vector DB or auth. A thin reviewer frontend is deferred until the
+  API MVP is complete and will use Vercel Hobby for personal, non-commercial
+  frontend hosting only; backend, database, secrets and policy enforcement stay
+  outside the browser.
 
 ## Verification target
 

@@ -6,6 +6,10 @@ AI Support Operator Copilot accepts an unstructured support request, gathers evi
 
 This is an API-first portfolio project. The initial release deliberately avoids a large frontend: FastAPI/OpenAPI and deterministic fixtures make the workflow inspectable and testable before a reviewer UI is added.
 
+A thin reviewer frontend is planned only after the API MVP is complete. It will
+be deployed as a personal, non-commercial frontend on Vercel Hobby; the FastAPI
+backend, PostgreSQL, policy gate, and all secrets remain outside the browser.
+
 ## Problem
 
 A support request often arrives incomplete: it may mix symptoms, urgency, user impact and assumptions. An operator must look up knowledge-base articles, similar incidents and service status, then decide what should happen next. A generic chat bot can draft plausible text, but it is hard to verify why it made a recommendation and unsafe to let it execute actions invisibly.
@@ -58,6 +62,28 @@ See [docs/product.md](docs/product.md) for scenarios and acceptance criteria, [d
 - pytest, Docker Compose and GitHub Actions
 
 No credentials or production integrations are required for the first vertical slice.
+
+## Local setup
+
+The project uses [uv](https://docs.astral.sh/uv/) and Python 3.12.
+
+```powershell
+uv sync --all-groups
+uv run uvicorn app.main:app --reload
+```
+
+Open `http://127.0.0.1:8000/docs` for the generated API documentation. The
+initial application exposes `GET /health`; the case workflow endpoints remain
+planned. Copy `.env.example` to `.env` only when local configuration is
+needed. LLM variables are optional at this stage.
+
+Run the foundation checks with:
+
+```powershell
+uv run pytest -q
+uv run ruff check .
+uv run mypy app
+```
 
 ## Status
 
