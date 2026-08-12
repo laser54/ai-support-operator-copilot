@@ -86,9 +86,13 @@ A reviewer should be able to run tests and follow one documented demo from reque
 
 ## Current implementation snapshot
 
-Phase 2 is complete: PostgreSQL 16 is available through `compose.yaml`, and
-the application has a SQLAlchemy 2 `CaseRepository` with an Alembic baseline
-migration for the minimal `cases` table. The normal test suite skips the
-PostgreSQL integration test unless `TEST_DATABASE_URL` identifies a dedicated
-disposable database. The next roadmap phase is typed domain contracts and
-deterministic synthetic fixtures; no case workflow endpoint exists yet.
+Phases 2 and 3 are complete: PostgreSQL 16 is available through `compose.yaml`,
+and the application has a SQLAlchemy 2 `CaseRepository` with an Alembic
+baseline migration for the minimal `cases` table. Strict Pydantic workflow
+contracts and deterministic synthetic fixture catalogues now cover the login
+HTTP 500 after update scenario. Fixture-backed read-only tools return traceable
+evidence and the PostgreSQL audit trail persists safe, ordered tool-call events.
+The normal test suite skips the PostgreSQL integration test unless
+`TEST_DATABASE_URL` identifies a dedicated disposable database. The next
+roadmap phase adds LLM triage and resolution-brief generation with a
+deterministic fallback; no case workflow endpoint exists yet.

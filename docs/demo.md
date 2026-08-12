@@ -4,6 +4,14 @@
 
 The demo proves a controlled agentic workflow, not an autonomous chatbot. A viewer should be able to inspect the request, each evidence-gathering step, the human correction, and the fact that execution stayed blocked until approval.
 
+## Current trace foundation
+
+The fixture-backed evidence sources for the canonical login HTTP 500 after an
+update scenario are deterministic: `kb-auth-5xx-after-release`, `inc-104`, and
+`status-portal-auth-5xx`. The future workflow persists each corresponding tool
+call as an ordered audit event with safe summaries. The API-driven case demo
+below remains planned until the intake endpoint is implemented.
+
 ## Prerequisites
 
 The implementation will document exact setup commands once the application exists. The intended local entrypoint is FastAPI with interactive docs at `/docs`.

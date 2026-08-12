@@ -6,7 +6,7 @@ This document is the authoritative sequential implementation guide for the repos
 
 **Current milestone:** MVP vertical slice
 
-**Current phase:** 3 — Domain contracts and fixtures
+**Current phase:** 5 — Triage and brief generation
 **Overall status:** ready to begin
 
 ## Status legend
@@ -79,7 +79,7 @@ Verification: With `DATABASE_URL=postgresql+psycopg://copilot:copilot@localhost:
 Documentation: Updated `README.md`, `docs/architecture.md`, and this roadmap.
 Follow-up: Define typed domain contracts and deterministic synthetic fixtures in phase 3; extend persistence only when those contracts require it.
 
-### 3. Domain contracts and fixtures — not started
+### 3. Domain contracts and fixtures — completed
 
 **Dependencies:** phase 2 completed.
 
@@ -89,7 +89,13 @@ Follow-up: Define typed domain contracts and deterministic synthetic fixtures in
 
 **Required documentation updates:** `docs/architecture.md` contract details; `docs/product.md` only if externally visible behavior differs; this roadmap completion record.
 
-### 4. Read-only tools and audit trail — not started
+Completed: 2026-08-12
+Scope: Added strict Pydantic contracts for cases, triage, evidence, briefs, actions, reviews, audit events, and execution results; added schema-validated deterministic synthetic knowledge, similar-case, and service-status fixture catalogues.
+Verification: `uv run pytest -q` passed (5 tests, 1 PostgreSQL test skipped without `TEST_DATABASE_URL`); `uv run ruff check .` passed; `uv run mypy app` passed.
+Documentation: Updated `docs/architecture.md`, `PROJECT_CONTEXT.md`, and this roadmap; `docs/product.md` unchanged because the implemented fixture scenario matches its existing MVP description.
+Follow-up: Implement fixture-backed read-only tools and persist ordered audit events in phase 4.
+
+### 4. Read-only tools and audit trail — completed
 
 **Dependencies:** phase 3 completed.
 
@@ -98,6 +104,12 @@ Follow-up: Define typed domain contracts and deterministic synthetic fixtures in
 **Acceptance criteria:** each read-only tool returns traceable evidence; tool calls have stable event ordering and safe input/output summaries; audit events persist and reload with the case.
 
 **Required documentation updates:** `docs/architecture.md` tools and audit semantics; `docs/demo.md` trace expectations; this roadmap completion record.
+
+Completed: 2026-08-12
+Scope: Added deterministic fixture-backed knowledge, similar-case, and service-status tools; added safe tool-call audit-event construction; persisted ordered case audit events with an Alembic migration and PostgreSQL repository methods.
+Verification: In a clean Docker PostgreSQL database, `uv run alembic upgrade head` applied revisions `20260812_01` and `20260812_02`; `uv run pytest -q` passed (10 tests); `uv run ruff check .` passed; `uv run mypy app` passed.
+Documentation: Updated `docs/architecture.md`, `docs/demo.md`, `PROJECT_CONTEXT.md`, and this roadmap.
+Follow-up: Implement validated LLM triage and resolution-brief generation with deterministic offline fallback in phase 5.
 
 ### 5. Triage and brief generation — not started
 

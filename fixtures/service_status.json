@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "source_type": "service_status",
+      "source_id": "status-portal-auth-5xx",
+      "title": "Portal authentication status",
+      "excerpt": "Synthetic status signal: portal authentication 5xx rate has been elevated since 10:42 UTC after the scheduled update.",
+      "keywords": ["portal", "authentication", "5xx", "update"],
+      "observed_at": "2026-08-12T10:52:00Z"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "source_type": "knowledge",
+      "source_id": "kb-auth-5xx-after-release",
+      "title": "Authentication 5xx after a release",
+      "excerpt": "Synthetic runbook: if login begins returning HTTP 500 immediately after a release, declare an access incident, collect the release version and affected environment, then route the incident to Engineering.",
+      "keywords": ["login", "http 500", "release", "authentication"],
+      "observed_at": "2026-08-12T10:45:00Z"
+    }
+  ]
+}

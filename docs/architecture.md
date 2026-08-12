@@ -76,6 +76,22 @@ AuditEvent
 
 The audit log stores safe summaries rather than secrets or raw provider credentials.
 
+### Implemented domain contracts and fixtures
+
+The `app.domain.contracts` module now provides Pydantic v2, `extra="forbid"`
+contracts for `Case`, `Triage`, `Evidence`, `ResolutionBrief`,
+`ProposedAction`, `Review`, `AuditEvent`, and `ExecutionResult`, plus their
+bounded lifecycle enums. The contracts validate priority, risk, timestamps,
+traceable source IDs, review edits, and execution outcomes. In particular, a
+successful mock execution needs an external reference; the contract does not
+make a provider-side effect possible.
+
+`fixtures/` contains schema-validated, deterministic synthetic catalogues for
+the login HTTP 500 after update scenario. Their stable IDs are
+`kb-auth-5xx-after-release`, `inc-104`, and `status-portal-auth-5xx`. These are
+data-only sources for the next phase's tools; no endpoint or tool execution is
+implemented in this phase.
+
 ## Tool contracts
 
 ### Read-only tools
@@ -87,6 +103,22 @@ check_service_status(service: str | None) -> list[Evidence]
 ```
 
 Their fixture outputs need stable source IDs and concise excerpts so a reviewer can trace every claim in the brief.
+
+### Implemented fixture tools and audit semantics
+
+The three read-only tools are now implemented in `app.tools.read_only`. They
+search only the committed synthetic fixture catalogues and return validated
+`Evidence` with the originating stable ID and tool name. They make no network
+request and have no write capability.
+
+Every tool call can be converted to a persisted `AuditEvent` with
+`tool_call_event`. Input summaries retain only structural metadata, such as a
+text length; field names matching credentials or secrets are redacted. Output
+summaries retain the fixture evidence source IDs used by the caller. The
+`audit_events` table enforces a unique `(case_id, sequence)` pair, and the
+repository assigns the next sequence and reloads traces in ascending order.
+This phase makes the trace durable but does not yet expose an HTTP trace
+endpoint; phase 6 and 7 add the workflow and API surface.
 
 ### Write tool
 

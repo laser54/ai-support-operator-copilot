@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "source_type": "similar_case",
+      "source_id": "inc-104",
+      "title": "Portal login failures after version 4.8.0",
+      "excerpt": "Synthetic incident INC-104: elevated portal login HTTP 500 responses after deployment were owned by Engineering and mitigated by rolling back the authentication adapter.",
+      "keywords": ["portal", "login", "500", "deployment"],
+      "observed_at": "2026-08-12T10:50:00Z"
+    }
+  ]
+}
