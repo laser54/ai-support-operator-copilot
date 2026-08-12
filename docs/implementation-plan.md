@@ -6,7 +6,7 @@ This document is the authoritative sequential implementation guide for the repos
 
 **Current milestone:** MVP vertical slice
 
-**Current phase:** 5 — Triage and brief generation
+**Current phase:** 9 — Reviewer frontend and Vercel Hobby deployment
 **Overall status:** ready to begin
 
 ## Status legend
@@ -111,7 +111,7 @@ Verification: In a clean Docker PostgreSQL database, `uv run alembic upgrade hea
 Documentation: Updated `docs/architecture.md`, `docs/demo.md`, `PROJECT_CONTEXT.md`, and this roadmap.
 Follow-up: Implement validated LLM triage and resolution-brief generation with deterministic offline fallback in phase 5.
 
-### 5. Triage and brief generation — not started
+### 5. Triage and brief generation — completed
 
 **Dependencies:** phase 4 completed.
 
@@ -121,7 +121,13 @@ Follow-up: Implement validated LLM triage and resolution-brief generation with d
 
 **Required documentation updates:** `README.md` LLM configuration and fallback; `docs/architecture.md` model boundary and failure behavior; this roadmap completion record.
 
-### 6. LangGraph workflow and intake API — not started
+Completed: 2026-08-12
+Scope: Added an OpenAI-compatible structured-output adapter, strict provider-boundary validation, deterministic offline triage and brief fallback, missing-information handling, and bounded non-secret fallback reasons.
+Verification: `uv run pytest -q` passed (11 tests, 2 PostgreSQL tests skipped without `TEST_DATABASE_URL`); `uv run ruff check .` passed; `uv run mypy app` passed.
+Documentation: Updated `README.md`, `docs/architecture.md`, `PROJECT_CONTEXT.md`, and this roadmap.
+Follow-up: Build the persisted LangGraph workflow and case intake/read API in phase 6.
+
+### 6. LangGraph workflow and intake API — completed
 
 **Dependencies:** phase 5 completed.
 
@@ -131,7 +137,13 @@ Follow-up: Implement validated LLM triage and resolution-brief generation with d
 
 **Required documentation updates:** `README.md` implemented endpoint surface; `docs/architecture.md` workflow/data flow; `docs/demo.md` create-and-inspect steps; this roadmap completion record.
 
-### 7. Human review and mock execution — not started
+Completed: 2026-08-12
+Scope: Added an explicit LangGraph intake workflow, JSON-safe PostgreSQL case checkpoints, intake/read API endpoints, and an API integration test for the canonical login HTTP 500 scenario.
+Verification: In a clean Docker PostgreSQL database, `uv run alembic upgrade head` applied revisions through `20260812_03`; `uv run pytest -q` passed (14 tests); `uv run ruff check .` passed; `uv run mypy app` passed.
+Documentation: Updated `README.md`, `docs/architecture.md`, `docs/demo.md`, `PROJECT_CONTEXT.md`, and this roadmap.
+Follow-up: Add review decisions, persisted approvals, the mock executor, and the trace endpoint in phase 7.
+
+### 7. Human review and mock execution — completed
 
 **Dependencies:** phase 6 completed.
 
@@ -141,7 +153,13 @@ Follow-up: Implement validated LLM triage and resolution-brief generation with d
 
 **Required documentation updates:** `README.md` implemented endpoint surface; `docs/architecture.md` approval and idempotency details; `docs/demo.md` full review/approve/reject path; this roadmap completion record.
 
-### 8. Acceptance hardening and API delivery — not started
+Completed: 2026-08-12
+Scope: Added typed review edits and decisions, persisted approvals in workflow state, action-idempotent mock incident execution, review/execution audit events, and review/trace API endpoints.
+Verification: In a clean Docker PostgreSQL database, `uv run alembic upgrade head` applied revisions through `20260812_04`; `uv run pytest -q` passed (16 tests); `uv run ruff check .` passed; `uv run mypy app` passed.
+Documentation: Updated `README.md`, `docs/architecture.md`, `docs/demo.md`, `PROJECT_CONTEXT.md`, and this roadmap.
+Follow-up: Harden acceptance paths, Docker workflow, CI, and API documentation in phase 8.
+
+### 8. Acceptance hardening and API delivery — completed
 
 **Dependencies:** phase 7 completed.
 
@@ -150,6 +168,12 @@ Follow-up: Implement validated LLM triage and resolution-brief generation with d
 **Acceptance criteria:** all documented MVP acceptance tests pass; Compose starts a clean demo environment; CI runs the relevant checks; the API demo can be followed through `/docs` without credentials; documentation has no stale planned/implemented claims.
 
 **Required documentation updates:** `README.md`, `docs/architecture.md`, `docs/demo.md`, and this roadmap completion record.
+
+Completed: 2026-08-12
+Scope: Added GitHub Actions CI with PostgreSQL-backed integration tests, Compose health checks, Docker build hygiene, negative API coverage, and an executable no-credential local API demo.
+Verification: `docker compose up --build` passed health, intake, approval, and trace smoke checks without LLM credentials (9 trace events); `uv run pytest -q` passed (11 tests, 6 PostgreSQL tests skipped without `TEST_DATABASE_URL`); `uv run ruff check .`, `uv run mypy app`, `docker compose config --quiet`, and `git diff --check` passed.
+Documentation: Updated `README.md`, `docs/architecture.md`, `docs/demo.md`, `PROJECT_CONTEXT.md`, and this roadmap.
+Follow-up: Phase 9 may add the deferred reviewer frontend; the API MVP is ready for local demonstration without provider credentials.
 
 ### 9. Reviewer frontend and Vercel Hobby deployment — not started
 

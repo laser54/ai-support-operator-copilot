@@ -1,11 +1,17 @@
 """Repository implementations for durable application state."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.domain.contracts import ActorType, AuditEvent
-from app.persistence.models import AuditEventRecord, CaseRecord
+from app.domain.contracts import ActorType, AuditEvent, ExecutionResult, ExecutionState
+from app.persistence.models import (
+    AuditEventRecord,
+    CaseRecord,
+    MockIncidentRecord,
+    WorkflowCheckpointRecord,
+)
 
 
 class CaseRepository:
@@ -27,6 +33,58 @@ class CaseRepository:
         """Reload a case record by identifier."""
 
         return self._session.get(CaseRecord, case_id)
+
+    def save_workflow_state(self, case_id: UUID, state: dict[str, object]) -> None:
+        """Store the current API-safe graph state and its latest checkpoint."""
+
+        case = self._session.get(CaseRecord, case_id)
+        if case is None:
+            raise ValueError("case does not exist")
+        case.status = str(state["status"])
+        case.workflow_state = state
+        checkpoint = self._session.get(WorkflowCheckpointRecord, case_id)
+        if checkpoint is None:
+            checkpoint = WorkflowCheckpointRecord(case_id=case_id, state=state)
+            self._session.add(checkpoint)
+        else:
+            checkpoint.state = state
+        self._session.commit()
+
+    def load_workflow_state(self, case_id: UUID) -> dict[str, object] | None:
+        """Reload the latest persisted graph checkpoint."""
+
+        checkpoint = self._session.get(WorkflowCheckpointRecord, case_id)
+        return checkpoint.state if checkpoint is not None else None
+
+    def execute_mock_incident(
+        self, *, case_id: UUID, action_id: UUID, approval_id: UUID
+    ) -> tuple[ExecutionResult, bool]:
+        """Create one mock incident per action, returning an existing result on retry."""
+
+        existing = self._session.get(MockIncidentRecord, action_id)
+        if existing is not None:
+            return self._execution_result(existing), False
+        record = MockIncidentRecord(
+            action_id=action_id,
+            case_id=case_id,
+            approval_id=approval_id,
+            external_reference=f"MOCK-{str(action_id)[:8].upper()}",
+        )
+        self._session.add(record)
+        self._session.commit()
+        self._session.refresh(record)
+        return self._execution_result(record), True
+
+    @staticmethod
+    def _execution_result(record: MockIncidentRecord) -> ExecutionResult:
+        return ExecutionResult(
+            action_id=record.action_id,
+            approval_id=record.approval_id,
+            state=ExecutionState.SUCCEEDED,
+            external_reference=record.external_reference,
+            message="Mock Engineering incident created.",
+            executed_at=record.created_at or datetime.now(UTC),
+        )
 
     def add_audit_event(self, event: AuditEvent) -> AuditEvent:
         """Append one event with a database-assigned sequence for its case."""

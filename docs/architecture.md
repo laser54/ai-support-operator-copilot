@@ -50,6 +50,35 @@ LangGraph case workflow
 
 A real LLM, when added, is only allowed in `triage` and `build_brief`, and must return structured data validated at the boundary. It does not receive a write capability directly.
 
+### Implemented intake graph and checkpoints
+
+The initial `CaseWorkflow` is an explicit LangGraph state graph with `intake`,
+`gather_evidence`, `build_brief`, and `policy_gate` nodes. It runs synchronously
+from `POST /cases` and always terminates at `awaiting_human_review`; there is no
+edge from this graph to an executor. The graph records creation, every tool
+call, brief construction, and the policy gate in the ordered audit trail.
+
+The latest JSON-safe graph state is stored with the case and mirrored in the
+`workflow_checkpoints` table. `GET /cases/{case_id}` returns that latest
+checkpoint. This provides durable pause state for the review phase; it does not
+yet support a general graph-resume interface; the review and trace endpoints
+operate on the persisted checkpoint and audit trail.
+
+### Implemented model boundary and fallback
+
+`app.llm.service` implements the analytical model boundary. The
+OpenAI-compatible adapter asks for JSON and validates it as `ModelOutput`,
+which contains only triage, facts, inferences, missing information, and a reply
+draft. It cannot supply actions, approvals, execution state, or tool results.
+Application code constructs the two proposal drafts after validation, so each
+write-capable action remains `proposed` and requires the later policy gate.
+
+When `LLM_API_KEY`, `LLM_BASE_URL`, or `LLM_MODEL` is absent, or when a provider
+request or validation fails, `TriageAndBriefService` returns a deterministic
+offline result. Its result reports only bounded fallback reasons
+(`provider_not_configured` or `provider_output_unavailable`), never a provider
+exception message, response body, or credential.
+
 ## State model
 
 The durable state must include at least:
@@ -152,6 +181,21 @@ The review endpoint accepts a typed payload such as:
 ```
 
 The system records both the pre-review proposal and effective post-review values. It must reject attempts to approve a missing proposal or execute a rejected action.
+
+### Implemented review and idempotency behavior
+
+`POST /cases/{case_id}/review` accepts typed edits and a persisted decision.
+Edits replace the effective triage priority, reply draft, and/or requester facts
+in the checkpoint before finalization; the original proposal remains visible in
+the audit history. Rejection changes proposals to `rejected`, stores the case
+as `rejected`, and does not invoke the executor.
+
+Approval binds the review ID to the `create_incident` proposal and inserts an
+`action_id`-keyed row in `mock_incidents`. The primary key makes the mock
+execution exactly once: repeated approval returns the existing mock reference
+without writing a second execution event. Approval, rejection, and execution
+are added to the ordered audit trail. `GET /cases/{case_id}/trace` exposes that
+trace in sequence order.
 
 ## Persistence choice
 

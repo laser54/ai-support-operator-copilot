@@ -1,6 +1,7 @@
 """Safe audit event construction for workflow and tool calls."""
 
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -9,7 +10,7 @@ from app.domain.contracts import ActorType, AuditEvent
 _SENSITIVE_KEY = re.compile(r"(api[_-]?key|authorization|password|secret|token)", re.IGNORECASE)
 
 
-def safe_summary(values: dict[str, object]) -> str:
+def safe_summary(values: Mapping[str, object]) -> str:
     """Create a bounded summary that redacts values under sensitive field names."""
 
     parts = [
@@ -23,7 +24,7 @@ def tool_call_event(
     *,
     case_id: UUID,
     tool_name: str,
-    inputs: dict[str, object],
+    inputs: Mapping[str, object],
     evidence_source_ids: list[str],
     correlation_id: UUID | None = None,
 ) -> AuditEvent:

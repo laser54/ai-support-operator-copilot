@@ -46,7 +46,7 @@ request
 
 See [docs/product.md](docs/product.md) for scenarios and acceptance criteria, [docs/architecture.md](docs/architecture.md) for the technical design, and [docs/demo.md](docs/demo.md) for the demonstrable path. The authoritative sequential implementation guide and completion evidence are maintained in [docs/implementation-plan.md](docs/implementation-plan.md).
 
-## Planned API surface
+## API surface
 
 - `POST /cases` — create a case and execute intake through the review gate.
 - `GET /cases/{case_id}` — retrieve case state, brief, evidence and audit events.
@@ -72,10 +72,10 @@ uv sync --all-groups
 uv run uvicorn app.main:app --reload
 ```
 
-Open `http://127.0.0.1:8000/docs` for the generated API documentation. The
-initial application exposes `GET /health`; the case workflow endpoints remain
-planned. Copy `.env.example` to `.env` only when local configuration is
-needed. LLM variables are optional at this stage.
+Open `http://127.0.0.1:8000/docs` for the generated API documentation. Copy
+`.env.example` to `.env` only when local configuration is needed. LLM variables
+are optional: without all three, the application uses its deterministic offline
+fallback.
 
 Run the foundation checks with:
 
@@ -85,18 +85,23 @@ uv run ruff check .
 uv run mypy app
 ```
 
-## PostgreSQL and migrations
+## Local Docker demo — no LLM key required
 
 The repository now includes a PostgreSQL persistence foundation. It stores the
 minimal durable `cases` record; typed workflow state, reviews, and audit events
 are added in later roadmap phases.
 
-Start the local stack (PostgreSQL is exposed on port `55432` to avoid common
-local PostgreSQL port conflicts):
+Start the complete local stack (PostgreSQL is exposed on port `55432` to avoid
+common local PostgreSQL port conflicts):
 
 ```powershell
 docker compose up --build
 ```
+
+Wait for `api` to become healthy, then open [API docs](http://127.0.0.1:8000/docs)
+or run the full scripted API demo in [docs/demo.md](docs/demo.md). Stop it with
+`docker compose down`; add `--volumes` only when you intentionally want a fresh
+local database.
 
 For a locally managed PostgreSQL instance, set `DATABASE_URL` and apply the
 schema:
@@ -119,12 +124,44 @@ uv run pytest -q
 docker compose down --volumes
 ```
 
+## LLM configuration and fallback
+
+Triage and resolution-brief generation use a strict OpenAI-compatible JSON
+boundary. Set all three optional variables to enable a compatible provider:
+
+```text
+LLM_API_KEY=...
+LLM_BASE_URL=https://provider.example/v1
+LLM_MODEL=provider-model-name
+```
+
+Leaving any of these unset selects the deterministic offline fallback. The same
+fallback is used when a provider request fails or its response does not match
+the typed contract. Provider errors and credentials are not returned in the
+result. In every mode, proposed actions are drafts created by application code;
+model output cannot execute or authorize a write.
+
+## Implemented case API
+
+After applying migrations and starting PostgreSQL, the API now exposes:
+
+- `POST /cases` — accepts `request_text`, runs the explicit workflow through
+  intake, evidence gathering, triage, brief generation, and the human policy
+  gate; returns `201` with `awaiting_human_review`.
+- `GET /cases/{case_id}` — reloads the latest persisted workflow checkpoint.
+- `POST /cases/{case_id}/review` — persists operator edits and an approve/reject
+  decision; approval creates one mock incident, while rejection never executes.
+- `GET /cases/{case_id}/trace` — returns the ordered persisted audit trace.
+
+The canonical login HTTP 500 after update request returns P1 triage, the three
+fixture evidence source IDs, and proposed actions. It never executes an action:
+the action occurs only after an operator uses the review API.
+
 ## Status
 
-**Persistence foundation implemented.** FastAPI health checks and the baseline
-PostgreSQL/Alembic case repository are available. The next planned vertical
-slice starts with typed domain contracts and synthetic fixtures; `POST /cases`
-and the workflow remain planned.
+**API MVP implemented.** The Docker stack runs the complete synthetic,
+human-reviewed workflow without provider credentials. Phase 9 is a deferred
+reviewer frontend and does not change the backend's safety boundary.
 
 ## Related work
 

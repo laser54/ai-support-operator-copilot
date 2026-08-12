@@ -92,7 +92,15 @@ baseline migration for the minimal `cases` table. Strict Pydantic workflow
 contracts and deterministic synthetic fixture catalogues now cover the login
 HTTP 500 after update scenario. Fixture-backed read-only tools return traceable
 evidence and the PostgreSQL audit trail persists safe, ordered tool-call events.
-The normal test suite skips the PostgreSQL integration test unless
-`TEST_DATABASE_URL` identifies a dedicated disposable database. The next
-roadmap phase adds LLM triage and resolution-brief generation with a
-deterministic fallback; no case workflow endpoint exists yet.
+Triage and brief generation now have a validated OpenAI-compatible boundary and
+deterministic offline fallback; neither provider output nor fallback can
+authorize or execute an action. The normal test suite skips the PostgreSQL
+integration test unless `TEST_DATABASE_URL` identifies a dedicated disposable
+database. The explicit LangGraph intake workflow is now available through
+`POST /cases` and `GET /cases/{case_id}`; it persists a checkpoint, gathers
+three fixture evidence sources, and stops at `awaiting_human_review` with no
+execution edge. Typed review edits, approval/rejection, exactly-once mock
+execution, and the ordered trace endpoint are now implemented. The next
+roadmap phase is an optional deferred reviewer frontend. The API MVP has CI,
+Docker health checks, an executable local demo, and a deterministic no-key
+fallback; it is ready to run locally without LLM credentials.
