@@ -117,9 +117,8 @@ make a provider-side effect possible.
 
 `fixtures/` contains schema-validated, deterministic synthetic catalogues for
 the login HTTP 500 after update scenario. Their stable IDs are
-`kb-auth-5xx-after-release`, `inc-104`, and `status-portal-auth-5xx`. These are
-data-only sources for the next phase's tools; no endpoint or tool execution is
-implemented in this phase.
+`kb-auth-5xx-after-release`, `inc-104`, and `status-portal-auth-5xx`; the
+implemented read-only tools return them as traceable evidence.
 
 ## Tool contracts
 
@@ -146,8 +145,8 @@ text length; field names matching credentials or secrets are redacted. Output
 summaries retain the fixture evidence source IDs used by the caller. The
 `audit_events` table enforces a unique `(case_id, sequence)` pair, and the
 repository assigns the next sequence and reloads traces in ascending order.
-This phase makes the trace durable but does not yet expose an HTTP trace
-endpoint; phase 6 and 7 add the workflow and API surface.
+The trace is durable and exposed through `GET /cases/{case_id}/trace`; the
+frontend must preserve its backend sequence order.
 
 ### Write tool
 
@@ -226,3 +225,16 @@ The MVP uses its own persisted audit events as the source of truth for the user-
 - No endpoint may execute a write tool merely because a model output asks for it.
 - Avoid logging full sensitive request content if real integrations are later introduced; define redaction first.
 - API auth is out of MVP scope; therefore the demo must remain local-only until an authentication model exists.
+
+## Planned reviewer frontend boundary
+
+The planned reviewer UI is a static React/TypeScript application. It presents
+the workflow and holds only temporary form state; FastAPI remains authoritative
+for case state, review decisions, policy enforcement, execution idempotency, and
+audit order. The browser receives an API base URL but no LLM or database
+credentials. Browser integration requires an explicit CORS allowlist. Public
+backend exposure remains out of scope until authentication is designed.
+
+The detailed information architecture, visual direction, accessibility rules,
+API prerequisites, testing matrix, and phased delivery plan are maintained in
+[frontend-plan.md](frontend-plan.md).

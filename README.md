@@ -44,7 +44,12 @@ request
   -> immutable audit trail
 ```
 
-See [docs/product.md](docs/product.md) for scenarios and acceptance criteria, [docs/architecture.md](docs/architecture.md) for the technical design, and [docs/demo.md](docs/demo.md) for the demonstrable path. The authoritative sequential implementation guide and completion evidence are maintained in [docs/implementation-plan.md](docs/implementation-plan.md).
+See [docs/product.md](docs/product.md) for scenarios and acceptance criteria,
+[docs/architecture.md](docs/architecture.md) for the technical design,
+[docs/demo.md](docs/demo.md) for the demonstrable API path, and
+[docs/frontend-plan.md](docs/frontend-plan.md) for the planned reviewer UI.
+The authoritative sequential implementation guide and completion evidence are
+maintained in [docs/implementation-plan.md](docs/implementation-plan.md).
 
 ## API surface
 

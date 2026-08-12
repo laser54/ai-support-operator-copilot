@@ -98,7 +98,9 @@ The MVP is complete when a fresh local setup can demonstrate and test all of the
 ## Future paths, deliberately deferred
 
 - Replace fixture search with an adapter to a semantic retrieval/reranking service.
-- Add a thin reviewer UI for edits, approval and trace visualization.
+- Build the thin reviewer UI described in
+  [frontend-plan.md](frontend-plan.md), centered on intake, evidence-backed
+  review, approval/rejection, and trace visualization.
 - Add a real ticketing connector with idempotency and reconciliation.
 - Add evaluation datasets for routing, retrieval grounding, clarification and unsafe-action rates.
 - Add provider-backed LLM calls behind a reproducible deterministic test mode.

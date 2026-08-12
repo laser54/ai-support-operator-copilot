@@ -187,6 +187,16 @@ Follow-up: Phase 9 may add the deferred reviewer frontend; the API MVP is ready 
 
 **Hosting constraints:** Vercel Hobby is free but restricted to non-commercial personal use. Deploy only frontend/static assets there; keep FastAPI, PostgreSQL, LLM keys, and all write-policy enforcement outside the browser and outside Vercel client bundles. Re-check current Vercel limits and terms before deploying because they can change.
 
+**Detailed implementation plan:** Follow `docs/frontend-plan.md`. Its sequential
+subphases are 9.1 foundation, 9.2 visual primitives and shell, 9.3 intake, 9.4
+read-only reviewer workspace, 9.5 edits and decision gate, 9.6 trace, 9.7
+end-to-end quality, and 9.8 deployment/handoff. Complete and verify each
+subphase before starting the next one.
+
+**Interface principle:** the UI must foreground the Request → Evidence → Brief
+→ Human gate → Audit workflow. It must not present the product as a generic
+chatbot or hide facts, inferences, missing information, action state, or trace.
+
 ## MVP boundaries
 
 The roadmap does not authorize authentication, real ticketing or other production integrations, autonomous writes, a vector database, or real customer data. The thin reviewer frontend is deferred to phase 9, after the API MVP is complete; it does not broaden the product boundary.

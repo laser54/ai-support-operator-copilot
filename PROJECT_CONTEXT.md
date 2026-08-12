@@ -1,22 +1,34 @@
-# AI Support Operator Copilot — рабочий контекст
+# AI Support Operator Copilot — Project Context
 
-## Миссия
+## Mission
 
-Собрать небольшой, но реально работающий API-first кейс: AI помогает оператору разобрать свободный support-запрос, показывает доказательства и предлагаемый следующий шаг; человек редактирует результат и разрешает внешнее действие. Система должна быть объяснимой и безопасной, а не выглядеть как произвольный чат-бот.
+Build a small but genuinely working API-first product: AI helps an operator
+analyze an unstructured support request, presents evidence and a proposed next
+step, and then requires a human to edit the result and authorize any external
+action. The system must be explainable and safe rather than behave like an
+unconstrained chatbot.
 
-## Неподвижные решения
+## Fixed decisions
 
-- Новый отдельный private repository; не форк `support_operator_panel` и не переписывай `assist-craft-qna`.
-- Первый этап без большого фронтенда. FastAPI docs, JSON и тесты — основной демонстрационный слой.
-- Fixture/mock data only. Не использовать реальные клиентские данные, токены, CRM или ticketing.
-- Один явный LangGraph workflow вместо multi-agent supervisor zoo.
-- Retrieval/knowledge — инструмент внутри workflow, не самостоятельный «агент».
-- Любая write-операция требует persisted human approval; mock executor нужен, чтобы это проверить без внешнего эффекта.
-- Не заявлять production readiness, реальные метрики качества или бизнес-результаты без измерений.
+- This is a new standalone private repository, not a fork of
+  `support_operator_panel` or a rewrite of `assist-craft-qna`.
+- The API MVP uses FastAPI documentation, JSON, and tests as its primary
+  demonstration layer. A focused reviewer frontend is planned only after the
+  API workflow is complete.
+- Use fixture and mock data only. Do not use real customer data, tokens, CRM, or
+  ticketing integrations.
+- Use one explicit LangGraph workflow rather than a multi-agent supervisor
+  hierarchy.
+- Retrieval and knowledge access are tools within the workflow, not independent
+  agents.
+- Every write operation requires persisted human approval. The mock executor
+  proves this boundary without creating an external side effect.
+- Do not claim production readiness, measured quality, or business results
+  without evidence.
 
 ## First vertical slice
 
-Input: свободное обращение об ошибке входа после обновления.
+Input: an unstructured report of a login failure after an update.
 
 Expected path:
 
@@ -104,3 +116,9 @@ execution, and the ordered trace endpoint are now implemented. The next
 roadmap phase is an optional deferred reviewer frontend. The API MVP has CI,
 Docker health checks, an executable local demo, and a deterministic no-key
 fallback; it is ready to run locally without LLM credentials.
+
+The reviewer frontend remains planned. `docs/frontend-plan.md` is its
+authoritative step-by-step product and implementation specification. The chosen
+shape is a focused React/TypeScript reviewer workspace, not a general helpdesk:
+intake, evidence-backed case review, human decision, and ordered trace. FastAPI
+retains all approval, execution, idempotency, and security enforcement.
