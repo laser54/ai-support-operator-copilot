@@ -118,8 +118,9 @@ Docker health checks, an executable local demo, and a deterministic no-key
 fallback; it is ready to run locally without LLM credentials.
 
 The reviewer frontend foundation is in `frontend/`. `docs/frontend-plan.md` is
-its authoritative product and implementation specification. Subphases 9.1–9.4
+its authoritative product and implementation specification. Subphases 9.1–9.5
 are implemented: scaffold, typed API client, design tokens, primitives, product
-entry, case intake, and a read-only reviewer workspace. FastAPI retains all
-approval, execution, idempotency, and security enforcement. The browser
-receives only `VITE_API_BASE_URL`. Case API responses include `request_text`.
+entry, case intake, reviewer workspace, human edits, and the decision gate.
+FastAPI retains all approval, execution, idempotency, and security enforcement.
+The browser receives only `VITE_API_BASE_URL`. Case API responses include
+`request_text`.

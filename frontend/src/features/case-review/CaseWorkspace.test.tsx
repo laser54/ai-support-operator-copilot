@@ -5,13 +5,14 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../api/client";
-import type { CaseResponse, TraceResponse } from "../../api/types";
+import type { CaseResponse, ReviewRequest, TraceResponse } from "../../api/types";
 import { CaseWorkspace } from "./CaseWorkspace";
 import { sampleCase, sampleTrace } from "./fixtures";
 
 function renderWorkspace(options?: {
   loadCase?: (caseId: string) => Promise<CaseResponse>;
   loadTrace?: (caseId: string) => Promise<TraceResponse>;
+  submitReview?: (caseId: string, body: ReviewRequest) => Promise<CaseResponse>;
   status?: CaseResponse["status"];
   copyText?: (value: string) => Promise<void>;
 }) {
@@ -25,9 +26,11 @@ function renderWorkspace(options?: {
       status: options?.status ?? sampleCase.status,
     });
   const loadTrace = options?.loadTrace ?? vi.fn().mockResolvedValue(sampleTrace);
+  const submitReview = options?.submitReview;
   const copyText = options?.copyText ?? vi.fn().mockResolvedValue(undefined);
   return {
     loadCase,
+    submitReview,
     copyText,
     user: userEvent.setup(),
     ...render(
@@ -37,7 +40,12 @@ function renderWorkspace(options?: {
             <Route
               path="/cases/:caseId"
               element={
-                <CaseWorkspace loadCase={loadCase} loadTrace={loadTrace} copyText={copyText} />
+                <CaseWorkspace
+                  loadCase={loadCase}
+                  loadTrace={loadTrace}
+                  submitReview={submitReview}
+                  copyText={copyText}
+                />
               }
             />
             <Route path="/cases/new" element={<p>New intake</p>} />
@@ -92,5 +100,94 @@ describe("CaseWorkspace", () => {
     expect(copyText).toHaveBeenCalledWith(sampleCase.case_id);
     await user.click(screen.getAllByRole("button", { name: "Copy source ID" })[0]);
     expect(copyText).toHaveBeenCalledWith("kb-auth-5xx-after-release");
+  });
+
+  it("submits edited values through the approve confirmation", async () => {
+    const approved: CaseResponse = {
+      ...sampleCase,
+      status: "completed",
+      triage: { ...sampleCase.triage, priority: "P2" },
+      resolution_brief: {
+        ...sampleCase.resolution_brief,
+        reply_draft: "Engineering is investigating.",
+        proposed_actions: [
+          {
+            ...sampleCase.resolution_brief.proposed_actions[0],
+            state: "executed",
+            execution_result: {
+              external_reference: "MOCK-1",
+              executed_at: "2026-08-12T11:00:00Z",
+              message: "Mock incident stored once.",
+            },
+          },
+        ],
+      },
+    };
+    const submitReview = vi.fn().mockResolvedValue(approved);
+    const { user } = renderWorkspace({ submitReview });
+    await screen.findByText("Waiting for review");
+    await user.click(screen.getByRole("button", { name: "Edit analysis" }));
+    await user.selectOptions(screen.getByLabelText("Priority"), "P2");
+    await user.click(screen.getByRole("button", { name: "Edit reply" }));
+    await user.clear(screen.getByLabelText("Reply draft"));
+    await user.type(screen.getByLabelText("Reply draft"), "Engineering is investigating.");
+    await user.click(screen.getByRole("button", { name: "Approve and create mock incident" }));
+    expect(screen.getByRole("dialog", { name: "Approve and create mock incident" })).toHaveTextContent(
+      "P2",
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent("Engineering is investigating.");
+    await user.click(screen.getByRole("button", { name: "Confirm approval" }));
+    expect(submitReview).toHaveBeenCalledWith(
+      sampleCase.case_id,
+      expect.objectContaining({
+        actor: "operator@example.test",
+        decision: "approve",
+        edits: expect.objectContaining({
+          priority: "P2",
+          reply_draft: "Engineering is investigating.",
+        }),
+      }),
+    );
+    expect(await screen.findByText(/MOCK-1/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Approve and create mock incident" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("rejects without showing a mock incident", async () => {
+    const rejected: CaseResponse = {
+      ...sampleCase,
+      status: "rejected",
+      resolution_brief: {
+        ...sampleCase.resolution_brief,
+        proposed_actions: sampleCase.resolution_brief.proposed_actions.map((action) => ({
+          ...action,
+          state: "rejected",
+        })),
+      },
+    };
+    const submitReview = vi.fn().mockResolvedValue(rejected);
+    const { user } = renderWorkspace({ submitReview });
+    await screen.findByText("Waiting for review");
+    await user.click(screen.getByRole("button", { name: "Reject proposal" }));
+    await user.click(screen.getByRole("button", { name: "Confirm rejection" }));
+    expect(submitReview).toHaveBeenCalledWith(
+      sampleCase.case_id,
+      expect.objectContaining({ decision: "reject" }),
+    );
+    expect(await screen.findByText(/no incident was created/i)).toBeInTheDocument();
+    expect(screen.queryByText(/MOCK-/)).not.toBeInTheDocument();
+  });
+
+  it("resets unsaved local edits", async () => {
+    const { user } = renderWorkspace();
+    await screen.findByText("Waiting for review");
+    await user.click(screen.getByRole("button", { name: "Edit reply" }));
+    await user.clear(screen.getByLabelText("Reply draft"));
+    await user.type(screen.getByLabelText("Reply draft"), "Temporary draft");
+    expect(screen.getByText(/unsaved local edits/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reset edits" }));
+    expect(screen.getByText(sampleCase.resolution_brief.reply_draft)).toBeInTheDocument();
+    expect(screen.queryByText(/unsaved local edits/i)).not.toBeInTheDocument();
   });
 });

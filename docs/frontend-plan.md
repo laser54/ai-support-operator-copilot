@@ -504,6 +504,8 @@ Acceptance:
 
 ### Step 9.5 — Human edits and decision gate
 
+Status: implemented.
+
 Deliver:
 
 - editable priority, reply, and requester facts;

@@ -195,8 +195,8 @@ the API environment.
 
 ## Status
 
-**API MVP implemented.** Frontend subphases 9.1–9.4 are implemented;
-edits/approval and Vercel deployment are still planned.
+**API MVP implemented.** Frontend subphases 9.1–9.5 are implemented;
+audit trace UX and Vercel deployment are still planned.
 
 ## Related work
 

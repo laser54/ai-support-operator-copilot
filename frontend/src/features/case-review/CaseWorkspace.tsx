@@ -1,24 +1,25 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 
 import { ApiError } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
 import { getCasesApi } from "../../api/runtime";
-import type { CaseResponse, TraceResponse } from "../../api/types";
+import type { CaseResponse, ReviewRequest, TraceResponse } from "../../api/types";
 import { ContextCard } from "../../components/patterns/ContextCard";
 import { LoadingState } from "../../components/patterns/LoadingState";
-import { RecommendationCard } from "../../components/patterns/RecommendationCard";
 import { TaskRows } from "../../components/patterns/TaskRows";
 import { Badge } from "../../components/primitives/Badge";
 import { Button } from "../../components/primitives/Button";
 import { Callout } from "../../components/primitives/Callout";
 import { Card } from "../../components/primitives/Card";
+import { ReviewPanel } from "./ReviewPanel";
 import { confidenceLabel, provenanceLabel, statusLabel, workflowItems } from "./status";
 import styles from "./CaseWorkspace.module.css";
 
 type Loaders = {
   loadCase?: (caseId: string) => Promise<CaseResponse>;
   loadTrace?: (caseId: string) => Promise<TraceResponse>;
+  submitReview?: (caseId: string, body: ReviewRequest) => Promise<CaseResponse>;
   copyText?: (value: string) => Promise<void>;
 };
 
@@ -27,13 +28,22 @@ function scrollToSection(id: string) {
   document.getElementById(id)?.focus();
 }
 
-export function CaseWorkspace({ loadCase, loadTrace, copyText }: Loaders) {
+export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: Loaders) {
   const { caseId = "" } = useParams();
+  const queryClient = useQueryClient();
   const caseQuery = useQuery({
     queryKey: queryKeys.case(caseId),
     queryFn: () => (loadCase ?? getCasesApi().get)(caseId),
     enabled: caseId.length > 0,
     retry: false,
+  });
+  const reviewMutation = useMutation({
+    mutationFn: (body: ReviewRequest) =>
+      (submitReview ?? ((id, payload) => getCasesApi().review(id, payload)))(caseId, body),
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.case(caseId), data);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.caseTrace(caseId) });
+    },
   });
   const traceQuery = useQuery({
     queryKey: queryKeys.caseTrace(caseId),
@@ -68,9 +78,6 @@ export function CaseWorkspace({ loadCase, loadTrace, copyText }: Loaders) {
   async function copy(value: string) {
     await (copyText ?? ((text: string) => navigator.clipboard.writeText(text)))(value);
   }
-  const incident = caseData.resolution_brief.proposed_actions.find(
-    (action) => action.kind === "create_incident",
-  );
   const latestEvent = traceQuery.data?.events.at(-1);
 
   return (
@@ -165,28 +172,21 @@ export function CaseWorkspace({ loadCase, loadTrace, copyText }: Loaders) {
 
           <Card as="section" id="brief" tabIndex={-1}>
             <h2>Resolution brief</h2>
-            <p>{caseData.resolution_brief.reply_draft}</p>
+            <p>Edit the customer-facing reply in Human review before you decide.</p>
           </Card>
 
           <section id="outcome" tabIndex={-1}>
-            {incident ? (
-              <RecommendationCard
-                title="Proposed incident action"
-                actionPreview={`${incident.payload_preview} (${incident.state})`}
-                evidenceStrength={`${caseData.evidence.length} fixture sources support this recommendation.`}
-                policyResult={
-                  incident.approval_required
-                    ? "This action cannot run until you approve it."
-                    : `Action state: ${incident.state}`
-                }
-                uncertainty={caseData.resolution_brief.missing_information.join("; ") || "No listed gaps."}
-              />
-            ) : null}
+            <ReviewPanel
+              caseData={caseData}
+              busy={reviewMutation.isPending}
+              error={reviewMutation.error?.message}
+              onSubmit={(body) => reviewMutation.mutate(body)}
+            />
           </section>
         </div>
       </div>
 
-      <details className={styles.trace}>
+      <details className={styles.trace} id="trace">
         <summary>
           Audit trail · {traceQuery.data?.events.length ?? 0} events
           {latestEvent ? ` · latest ${latestEvent.event_type}` : ""}

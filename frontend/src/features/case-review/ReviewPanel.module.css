@@ -1,0 +1,33 @@
+.bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding-top: var(--space-3);
+  background: var(--color-canvas);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+@media (min-width: 64rem) {
+  .bar {
+    position: static;
+    background: transparent;
+    padding-top: 0;
+  }
+}
