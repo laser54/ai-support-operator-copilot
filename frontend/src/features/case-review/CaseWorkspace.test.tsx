@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../api/client";
 import type { CaseResponse, ReviewRequest, TraceResponse } from "../../api/types";
 import { CaseWorkspace } from "./CaseWorkspace";
-import { sampleCase, sampleTrace } from "./fixtures";
+import { sampleCase, sampleTrace, approvedTrace, rejectedTrace } from "./fixtures";
 
 function renderWorkspace(options?: {
   loadCase?: (caseId: string) => Promise<CaseResponse>;
@@ -189,5 +189,51 @@ describe("CaseWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "Reset edits" }));
     expect(screen.getByText(sampleCase.resolution_brief.reply_draft)).toBeInTheDocument();
     expect(screen.queryByText(/unsaved local edits/i)).not.toBeInTheDocument();
+  });
+
+  it("loads the trace independently and links evidence to events", async () => {
+    renderWorkspace({ loadTrace: () => new Promise(() => undefined) });
+    await screen.findByText("Waiting for review");
+    expect(screen.getByText("Loading trace")).toBeInTheDocument();
+  });
+
+  it("links evidence and the policy gate into the ordered trace", async () => {
+    renderWorkspace();
+    await screen.findByText("Case created");
+    expect(screen.getByRole("link", { name: "View kb-auth-5xx-after-release in trace" })).toHaveAttribute(
+      "href",
+      "#event-00000000-0000-4000-8000-000000000002",
+    );
+    expect(screen.getByRole("link", { name: "View policy gate in trace" })).toHaveAttribute(
+      "href",
+      "#event-00000000-0000-4000-8000-000000000006",
+    );
+  });
+
+  it("retries a failed trace without replacing the case", async () => {
+    const loadTrace = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Trace unavailable"))
+      .mockResolvedValueOnce(sampleTrace);
+    const { user } = renderWorkspace({ loadTrace });
+    await screen.findByText("Waiting for review");
+    expect(await screen.findByText("Trace unavailable")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry trace" }));
+    expect(await screen.findByText("Case created")).toBeInTheDocument();
+  });
+
+  it("shows execution in the approved trace and omits it after rejection", async () => {
+    const { unmount } = renderWorkspace({
+      status: "completed",
+      loadTrace: vi.fn().mockResolvedValue(approvedTrace),
+    });
+    expect(await screen.findByText("Mock incident executed")).toBeInTheDocument();
+    unmount();
+    renderWorkspace({
+      status: "rejected",
+      loadTrace: vi.fn().mockResolvedValue(rejectedTrace),
+    });
+    expect(await screen.findByText("Action rejected")).toBeInTheDocument();
+    expect(screen.queryByText("Mock incident executed")).not.toBeInTheDocument();
   });
 });

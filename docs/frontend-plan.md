@@ -522,6 +522,8 @@ Acceptance:
 
 ### Step 9.6 — Audit trace experience
 
+Status: implemented.
+
 Deliver:
 
 - ordered timeline, event groups, filters, detail disclosure, and correlation IDs;

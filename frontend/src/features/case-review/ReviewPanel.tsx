@@ -19,11 +19,15 @@ export function ReviewPanel({
   caseData,
   busy,
   error,
+  policyTraceHref = "#trace",
+  executionTraceHref = "#trace",
   onSubmit,
 }: {
   caseData: CaseResponse;
   busy: boolean;
   error?: string;
+  policyTraceHref?: string;
+  executionTraceHref?: string;
   onSubmit: (body: ReviewRequest) => void;
 }) {
   const [local, setLocal] = useState(() => localReviewFromCase(caseData, DEFAULT_REVIEW_ACTOR));
@@ -65,7 +69,7 @@ export function ReviewPanel({
             : null}
         </p>
         <p>Repeated approval will not create another incident.</p>
-        <a href="#trace">View in trace</a>
+        <a href={executionTraceHref}>View in trace</a>
       </Callout>
     );
   }
@@ -173,6 +177,9 @@ export function ReviewPanel({
           onApprove={() => setApproveOpen(true)}
           onReject={() => setRejectOpen(true)}
         />
+        <p>
+          <a href={policyTraceHref}>View policy gate in trace</a>
+        </p>
       </div>
       {error ? (
         <Callout tone="danger" title="The review could not be saved">

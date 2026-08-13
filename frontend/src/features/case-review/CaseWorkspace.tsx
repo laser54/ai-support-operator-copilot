@@ -12,6 +12,8 @@ import { Badge } from "../../components/primitives/Badge";
 import { Button } from "../../components/primitives/Button";
 import { Callout } from "../../components/primitives/Callout";
 import { Card } from "../../components/primitives/Card";
+import { TraceTimeline } from "../trace/TraceTimeline";
+import { eventAnchorId, firstEventOfType, toolEventForSource } from "../trace/labels";
 import { ReviewPanel } from "./ReviewPanel";
 import { confidenceLabel, provenanceLabel, statusLabel, workflowItems } from "./status";
 import styles from "./CaseWorkspace.module.css";
@@ -79,6 +81,9 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
     await (copyText ?? ((text: string) => navigator.clipboard.writeText(text)))(value);
   }
   const latestEvent = traceQuery.data?.events.at(-1);
+  const events = traceQuery.data?.events ?? [];
+  const policyEvent = firstEventOfType(events, "human_review_requested");
+  const executionEvent = firstEventOfType(events, "action_executed");
 
   return (
     <div className={styles.workspace}>
@@ -156,18 +161,27 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
 
           <section className={styles.stack} id="evidence" tabIndex={-1}>
             <h2>Evidence</h2>
-            {caseData.evidence.map((item) => (
-              <ContextCard
-                key={item.source_id}
-                sourceType={item.source_type}
-                sourceId={item.source_id}
-                excerpt={item.excerpt}
-                toolName={item.tool_name}
-                observedAt={item.observed_at}
-                retrievalReason={`Returned by ${item.tool_name}`}
-                onCopy={copy}
-              />
-            ))}
+            {caseData.evidence.map((item) => {
+              const toolEvent = toolEventForSource(events, item.source_id);
+              return (
+                <div key={item.source_id}>
+                  <ContextCard
+                    sourceType={item.source_type}
+                    sourceId={item.source_id}
+                    excerpt={item.excerpt}
+                    toolName={item.tool_name}
+                    observedAt={item.observed_at}
+                    retrievalReason={`Returned by ${item.tool_name}`}
+                    onCopy={copy}
+                  />
+                  <p>
+                    <a href={toolEvent ? `#${eventAnchorId(toolEvent)}` : "#trace"}>
+                      View {item.source_id} in trace
+                    </a>
+                  </p>
+                </div>
+              );
+            })}
           </section>
 
           <Card as="section" id="brief" tabIndex={-1}>
@@ -180,6 +194,8 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
               caseData={caseData}
               busy={reviewMutation.isPending}
               error={reviewMutation.error?.message}
+              policyTraceHref={policyEvent ? `#${eventAnchorId(policyEvent)}` : "#trace"}
+              executionTraceHref={executionEvent ? `#${eventAnchorId(executionEvent)}` : "#trace"}
               onSubmit={(body) => reviewMutation.mutate(body)}
             />
           </section>
@@ -191,17 +207,15 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
           Audit trail · {traceQuery.data?.events.length ?? 0} events
           {latestEvent ? ` · latest ${latestEvent.event_type}` : ""}
         </summary>
-        {traceQuery.isPending ? <p>Loading trace</p> : null}
-        {traceQuery.error ? <p>{traceQuery.error.message}</p> : null}
-        {traceQuery.data ? (
-          <ol>
-            {traceQuery.data.events.map((event) => (
-              <li key={event.id}>
-                {event.sequence}. {event.event_type} · {event.name}
-              </li>
-            ))}
-          </ol>
-        ) : null}
+        <Button variant="secondary" onClick={() => void traceQuery.refetch()}>
+          Refresh trace
+        </Button>
+        <TraceTimeline
+          events={traceQuery.data?.events}
+          loading={traceQuery.isPending || (traceQuery.isFetching && !traceQuery.data)}
+          error={traceQuery.error?.message}
+          onRetry={() => void traceQuery.refetch()}
+        />
       </details>
     </div>
   );

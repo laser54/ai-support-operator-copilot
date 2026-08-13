@@ -7,7 +7,7 @@ This document is the authoritative sequential implementation guide for the repos
 **Current milestone:** MVP vertical slice
 
 **Current phase:** 9 — Reviewer frontend and Vercel Hobby deployment
-**Overall status:** 9.5 complete; 9.6 is next
+**Overall status:** 9.6 complete; 9.7 is next
 
 ## Status legend
 
@@ -238,6 +238,12 @@ Scope: Subphase 9.5 — editable priority, reply, and requester facts; dirty-sta
 Verification: `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build` with `VITE_API_BASE_URL=http://127.0.0.1:8000` passed in `frontend/`.
 Documentation: Updated `docs/frontend-plan.md`, `PROJECT_CONTEXT.md`, `README.md`, and this roadmap.
 Follow-up: Continue with subphase 9.6 (audit trace experience). Do not mark phase 9 complete until 9.8.
+
+Completed: 2026-08-13
+Scope: Subphase 9.6 — ordered audit timeline with human-readable labels, category filters that do not reorder events, event-detail disclosure with correlation IDs, independent trace loading/error/retry, and links from evidence, policy gate, and execution into the matching events. Execution events appear after approval and not after rejection.
+Verification: `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build` with `VITE_API_BASE_URL=http://127.0.0.1:8000` passed in `frontend/`.
+Documentation: Updated `docs/frontend-plan.md`, `PROJECT_CONTEXT.md`, `README.md`, and this roadmap.
+Follow-up: Continue with subphase 9.7 (end-to-end quality and polish). Do not mark phase 9 complete until 9.8.
 
 ## MVP boundaries
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import styles from "./FilterTable.module.css";
 
@@ -18,7 +18,13 @@ const FILTERS: Array<{ id: "all" | TraceFilterCategory; label: string }> = [
   { id: "execution", label: "Execution" },
 ];
 
-export function FilterTable({ events }: { events: FilterTableEvent[] }) {
+export function FilterTable<T extends FilterTableEvent>({
+  events,
+  renderEvent,
+}: {
+  events: T[];
+  renderEvent?: (event: T) => ReactNode;
+}) {
   const [selected, setSelected] = useState<"all" | TraceFilterCategory>("all");
 
   const counts = useMemo(() => {
@@ -49,7 +55,7 @@ export function FilterTable({ events }: { events: FilterTableEvent[] }) {
       <ol className={styles.list}>
         {visible.map((event) => (
           <li className={styles.item} key={event.id}>
-            {event.label}
+            {renderEvent ? renderEvent(event) : event.label}
           </li>
         ))}
       </ol>

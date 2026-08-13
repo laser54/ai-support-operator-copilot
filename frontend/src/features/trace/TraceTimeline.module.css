@@ -1,0 +1,26 @@
+.event {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.heading {
+  margin: 0;
+  font-weight: 600;
+}
+
+.sequence {
+  font-family: var(--font-mono);
+}
+
+.meta,
+.sources,
+.decision {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.sources,
+.decision {
+  font-family: var(--font-mono);
+}
