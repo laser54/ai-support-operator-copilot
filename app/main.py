@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from app.api.cases import router as cases_router
 from app.api.errors import error_envelope
 from app.config import get_settings
+from app.rate_limit import IntakeRateLimiter
 
 
 def _cors_origins(raw: str) -> list[str]:
@@ -42,6 +43,10 @@ def create_app() -> FastAPI:
             allow_methods=["GET", "POST", "OPTIONS"],
             allow_headers=["Content-Type"],
         )
+    application.state.intake_rate_limiter = IntakeRateLimiter(
+        limit=settings.intake_rate_limit,
+        window_seconds=settings.intake_rate_window_seconds,
+    )
     application.add_exception_handler(HTTPException, handle_http_exception)
     application.include_router(cases_router)
     application.add_api_route("/health", health, methods=["GET"], tags=["system"])

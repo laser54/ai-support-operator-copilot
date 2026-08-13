@@ -185,8 +185,9 @@ def _analysis_profile(request_text: str, evidence: list[Evidence]) -> _AnalysisP
                 "first observed handshake failure time",
             ),
             reply=(
-                "We have recorded the VPN connection failure and are checking it with Network Engineering. "
-                "Please send the gateway or region, and when the handshake first failed."
+                "We have recorded the VPN connection failure and are checking it with "
+                "Network Engineering. Please send the gateway or region, and when the "
+                "handshake first failed."
             ),
             incident="Create a Network Engineering incident draft for the VPN certificate failure.",
             ask="Ask for the VPN gateway, certificate identifier, and first failure time.",
@@ -197,15 +198,19 @@ def _analysis_profile(request_text: str, evidence: list[Evidence]) -> _AnalysisP
             priority=Priority.P2,
             risk=RiskLevel.MEDIUM,
             fact="Requester reports invoice PDF export jobs time out and produce no file.",
-            inference="The billing export pipeline may be failing after a renderer or job-runner change.",
+            inference=(
+                "The billing export pipeline may be failing after a renderer or "
+                "job-runner change."
+            ),
             missing=(
                 "job ID or tenant",
                 "first observed timeout time",
                 "whether other billing exports still succeed",
             ),
             reply=(
-                "We have recorded the invoice PDF export timeout and are checking it with Billing Platform. "
-                "Please send a job ID or tenant and when the timeout first appeared."
+                "We have recorded the invoice PDF export timeout and are checking it with "
+                "Billing Platform. Please send a job ID or tenant and when the timeout "
+                "first appeared."
             ),
             incident="Create a Billing Platform incident draft for the invoice PDF timeout.",
             ask="Ask for the job ID, tenant, and first timeout time.",
@@ -215,8 +220,14 @@ def _analysis_profile(request_text: str, evidence: list[Evidence]) -> _AnalysisP
             category="incident/messaging",
             priority=Priority.P2,
             risk=RiskLevel.MEDIUM,
-            fact="Requester reports outbound email is delayed and password-reset messages are not arriving.",
-            inference="The delay may be a mail-queue or rate-limit issue rather than a template bug.",
+            fact=(
+                "Requester reports outbound email is delayed and password-reset messages "
+                "are not arriving."
+            ),
+            inference=(
+                "The delay may be a mail-queue or rate-limit issue rather than a "
+                "template bug."
+            ),
             missing=(
                 "example recipient address",
                 "when the delay started",
@@ -227,7 +238,10 @@ def _analysis_profile(request_text: str, evidence: list[Evidence]) -> _AnalysisP
                 "Please send one example recipient and when the delay started."
             ),
             incident="Create a Messaging incident draft for the outbound email delay.",
-            ask="Ask for an example recipient, start time, and whether only password-reset mail is affected.",
+            ask=(
+                "Ask for an example recipient, start time, and whether only "
+                "password-reset mail is affected."
+            ),
         )
     if "sso" in blob or "mfa" in blob or "okta" in blob:
         return _AnalysisProfile(
@@ -235,7 +249,10 @@ def _analysis_profile(request_text: str, evidence: list[Evidence]) -> _AnalysisP
             priority=Priority.P1,
             risk=RiskLevel.HIGH,
             fact="Requester reports users are stuck in an SSO MFA loop and never reach the app.",
-            inference="An IdP MFA policy change may be looping the challenge instead of completing SSO.",
+            inference=(
+                "An IdP MFA policy change may be looping the challenge instead of "
+                "completing SSO."
+            ),
             missing=(
                 "affected application or Okta policy name",
                 "first observed loop time",

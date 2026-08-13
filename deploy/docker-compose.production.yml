@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: copilot
+      POSTGRES_USER: copilot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U copilot -d copilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    image: ghcr.io/laser54/ai-support-operator-copilot:${IMAGE_TAG:?IMAGE_TAG is required}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://copilot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/copilot
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - default
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=rag-stack_internal
+      - traefik.http.routers.ai-support-http.rule=Host(`copilot.larin.work`)
+      - traefik.http.routers.ai-support-http.entrypoints=web
+      - traefik.http.routers.ai-support-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.ai-support.rule=Host(`copilot.larin.work`)
+      - traefik.http.routers.ai-support.entrypoints=websecure
+      - traefik.http.routers.ai-support.tls=true
+      - traefik.http.services.ai-support.loadbalancer.server.port=8000
+
+volumes:
+  postgres_data:
+
+networks:
+  traefik:
+    external: true
+    name: rag-stack_internal

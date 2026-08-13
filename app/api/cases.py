@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ from app.graph.workflow import CaseWorkflow
 from app.llm.service import TriageAndBriefService
 from app.persistence.database import get_session
 from app.persistence.repositories import CaseRepository
+from app.rate_limit import IntakeRateLimiter, client_id_from_request
 from app.review import ReviewService
 
 router = APIRouter(prefix="/cases", tags=["cases"])
@@ -77,9 +78,13 @@ def _response(state: dict[str, object]) -> CaseResponse:
 
 @router.post("", response_model=CaseResponse, status_code=status.HTTP_201_CREATED)
 def create_case(
-    payload: CreateCaseRequest, session: Session = Depends(get_session)
+    payload: CreateCaseRequest,
+    request: Request,
+    session: Session = Depends(get_session),
 ) -> CaseResponse:
     """Create a case and run it until the mandatory human review gate."""
+    limiter = cast(IntakeRateLimiter, request.app.state.intake_rate_limiter)
+    limiter.check(client_id_from_request(request))
 
     repository = CaseRepository(session)
     workflow = CaseWorkflow(repository, TriageAndBriefService(get_settings()))
