@@ -468,6 +468,8 @@ Acceptance:
 
 ### Step 9.3 — Product entry and intake
 
+Status: implemented.
+
 Deliver:
 
 - workflow-oriented product entry page;

@@ -1,0 +1,30 @@
+.page {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--prose-max);
+}
+
+.trust {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-min);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.docs {
+  color: var(--color-primary);
+  min-height: var(--control-min);
+  display: inline-flex;
+  align-items: center;
+}

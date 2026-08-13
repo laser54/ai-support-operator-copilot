@@ -1,7 +1,10 @@
+import { IntakeForm } from "../features/intake/IntakeForm";
+
 export function NewCasePage() {
   return (
     <>
-      <h1>Describe the support issue</h1>
+      <h1>New case</h1>
+      <IntakeForm />
     </>
   );
 }

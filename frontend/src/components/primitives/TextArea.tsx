@@ -1,4 +1,4 @@
-import type { TextareaHTMLAttributes } from "react";
+import type { Ref, TextareaHTMLAttributes } from "react";
 
 import { cx } from "../cx";
 import { FieldChrome } from "./FieldChrome";
@@ -9,9 +9,18 @@ export type TextAreaProps = {
   label: string;
   hint?: string;
   error?: string;
+  ref?: Ref<HTMLTextAreaElement>;
 } & TextareaHTMLAttributes<HTMLTextAreaElement>;
 
-export function TextArea({ label, hint, error, id, className, ...props }: TextAreaProps) {
+export function TextArea({
+  label,
+  hint,
+  error,
+  id,
+  className,
+  ref,
+  ...props
+}: TextAreaProps) {
   const { inputId, hintId, errorId } = useFieldIds(id);
 
   return (
@@ -25,6 +34,7 @@ export function TextArea({ label, hint, error, id, className, ...props }: TextAr
     >
       <textarea
         {...props}
+        ref={ref}
         id={inputId}
         className={cx(styles.control, styles.textarea, error && styles.invalid, className)}
         aria-invalid={error ? true : undefined}
