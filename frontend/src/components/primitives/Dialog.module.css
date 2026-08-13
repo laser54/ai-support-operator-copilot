@@ -6,10 +6,11 @@
   background: var(--color-surface);
   color: var(--color-text);
   box-shadow: var(--shadow-overlay);
+  animation: dialog-in var(--duration) var(--ease);
 }
 
 .dialog::backdrop {
-  background: rgb(28 25 23 / 45%);
+  background: rgb(0 0 0 / 72%);
 }
 
 .header {

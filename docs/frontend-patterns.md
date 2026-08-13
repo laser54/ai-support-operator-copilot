@@ -11,11 +11,11 @@ primary actions, and `--duration` that collapses under `prefers-reduced-motion`.
 ## Loading State
 
 - Keyboard: not a tab stop; status text is available to assistive technology.
-- Screen reader: `role="status"` announces the current stage label; skeleton
-  blocks are `aria-hidden`.
-- Reduced motion: shimmer animation is disabled; blocks stay a static muted
-  surface.
-- Narrow screen: stacked section-shaped blocks, no side-by-side chrome.
+- Screen reader: `role="status"` announces the current stage label; the pixel
+  grid and elapsed timer are decorative (`aria-hidden`).
+- Reduced motion: grid cells stay static at low opacity; elapsed time still
+  updates without pulse.
+- Narrow screen: stacked meta row plus a wrapping 12-column pixel grid.
 
 ## Task Rows
 

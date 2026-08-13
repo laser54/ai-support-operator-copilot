@@ -1,6 +1,7 @@
 .workspace {
   display: grid;
   gap: var(--space-4);
+  animation: rise 360ms var(--ease) both;
 }
 
 .layout {

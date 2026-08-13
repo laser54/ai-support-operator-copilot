@@ -2,29 +2,40 @@
   display: grid;
   gap: var(--space-4);
   max-width: var(--prose-max);
+  animation: rise 420ms var(--ease) both;
+}
+
+.page h1 {
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+
+.lede {
+  margin: 0;
+  color: var(--color-text-muted);
 }
 
 .trust {
   margin: 0;
   padding-left: 1.25rem;
+  color: var(--color-text-muted);
 }
 
-.cta {
-  display: inline-flex;
+.actions {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  min-height: var(--control-min);
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  color: var(--color-primary-fg);
-  font-weight: 600;
-  text-decoration: none;
+  gap: var(--space-3);
 }
 
 .docs {
-  color: var(--color-primary);
+  color: var(--color-text-muted);
   min-height: var(--control-min);
   display: inline-flex;
   align-items: center;
+  transition: color var(--duration) var(--ease);
+}
+
+.docs:hover {
+  color: var(--color-text);
 }

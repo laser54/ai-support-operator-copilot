@@ -109,12 +109,12 @@ The following catalog patterns are intentionally not part of the first slice:
 - **Insight Cards**, **Fine-tune Card**, and **Selection Actions** do not match the
   MVP workflow and should not be introduced as ornamental features.
 
-Borrow Beautiful UI's strongest visual qualities: restrained dark or light
-surfaces, compact hierarchy, subtle borders, clearly grouped actions, readable
-status labels, and generous space around the active decision. Do not copy its
-demo content, dark theme values, density, animation, or component geometry
-verbatim. The project token system, WCAG 2.2 AA requirements, responsive rules,
-and security boundary in this document take precedence.
+Borrow Beautiful UI's strongest visual qualities: dark graphite surfaces,
+compact hierarchy, hairline borders, clearly grouped actions, readable status
+labels, and generous space around the active decision. Do not copy its demo
+content, catalog geometry, or animation verbatim. The project token system,
+WCAG 2.2 AA requirements, responsive rules, and security boundary in this
+document take precedence.
 
 ### Proposed repository layout
 
@@ -310,9 +310,9 @@ and trustworthy rather than futuristic or playful.
 
 ### Color system
 
-- canvas: warm near-white or very dark graphite, with a user-selectable theme
-  only if both themes can be completed consistently;
-- primary: deep indigo or cobalt for navigation and primary actions;
+- canvas: very dark graphite (implemented); a second light theme only if both
+  themes can be completed consistently;
+- primary: near-white fills for primary actions on the dark canvas;
 - evidence: cyan/teal accent;
 - human review: violet accent to distinguish human authority from AI output;
 - success: green, warning/missing information: amber, rejection: red;

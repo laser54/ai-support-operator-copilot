@@ -18,15 +18,15 @@
 
 .warning {
   border-color: var(--color-warning);
-  background: #fff7ed;
+  background: var(--color-warning-muted);
 }
 
 .danger {
   border-color: var(--color-danger);
-  background: #fff1f2;
+  background: var(--color-danger-muted);
 }
 
 .success {
   border-color: var(--color-success);
-  background: #f0fdf4;
+  background: var(--color-success-muted);
 }

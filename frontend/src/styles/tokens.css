@@ -1,18 +1,23 @@
 :root {
-  --color-canvas: #f4f1ea;
-  --color-surface: #fffcf7;
-  --color-surface-muted: #ece7dd;
-  --color-text: #1c1917;
-  --color-text-muted: #44403c;
-  --color-border: #d6d0c4;
-  --color-primary: #2c3180;
-  --color-primary-fg: #f8fafc;
-  --color-evidence: #0a5c56;
-  --color-review: #6d28d9;
-  --color-success: #166534;
-  --color-warning: #92400e;
-  --color-danger: #9f1239;
-  --color-info: #1e3a8a;
+  color-scheme: dark;
+  --color-canvas: #09090b;
+  --color-surface: #111113;
+  --color-surface-muted: #18181b;
+  --color-text: #fafafa;
+  --color-text-muted: #a1a1aa;
+  --color-border: #27272a;
+  --color-primary: #fafafa;
+  --color-primary-fg: #09090b;
+  --color-primary-hover: #e4e4e7;
+  --color-evidence: #2dd4bf;
+  --color-review: #c4b5fd;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #fb7185;
+  --color-info: #93c5fd;
+  --color-warning-muted: color-mix(in srgb, var(--color-warning) 14%, var(--color-surface));
+  --color-danger-muted: color-mix(in srgb, var(--color-danger) 14%, var(--color-surface));
+  --color-success-muted: color-mix(in srgb, var(--color-success) 14%, var(--color-surface));
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -20,25 +25,31 @@
   --space-5: 1.5rem;
   --space-6: 2rem;
   --space-7: 3rem;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.75rem;
-  --shadow-overlay: 0 16px 40px rgb(28 25 23 / 18%);
-  --shadow-decision: 0 8px 24px rgb(44 49 128 / 16%);
-  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-mono: "Cascadia Mono", "SFMono-Regular", ui-monospace, monospace;
+  --radius-sm: 0.625rem;
+  --radius-md: 1rem;
+  --shadow-overlay: 0 24px 64px rgb(0 0 0 / 55%);
+  --shadow-decision: 0 0 0 1px color-mix(in srgb, var(--color-review) 45%, transparent),
+    0 16px 40px rgb(0 0 0 / 35%);
+  --font-sans: Inter, ui-sans-serif, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Cascadia Mono", ui-monospace, monospace;
   --font-size-body: 1rem;
   --font-size-sm: 0.875rem;
   --line-height: 1.5;
-  --focus-ring: 2px solid var(--color-primary);
+  --focus-ring: 2px solid var(--color-review);
   --focus-offset: 2px;
   --control-min: 2.75rem;
-  --duration: 180ms;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 120ms;
+  --duration: 200ms;
+  --duration-slow: 1.4s;
   --content-max: 72rem;
   --prose-max: 42rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
+    --duration-fast: 0.01ms;
     --duration: 0.01ms;
+    --duration-slow: 0.01ms;
   }
 }

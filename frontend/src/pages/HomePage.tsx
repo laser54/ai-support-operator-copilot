@@ -10,7 +10,7 @@ export function HomePage() {
   return (
     <div className={styles.page}>
       <h1>AI Support Operator Copilot</h1>
-      <p>Evidence-backed review before any action executes.</p>
+      <p className={styles.lede}>Evidence-backed review before any action executes.</p>
       <WorkflowStrip />
       <ul className={styles.trust}>
         <li>Fixture-backed evidence with stable source IDs</li>

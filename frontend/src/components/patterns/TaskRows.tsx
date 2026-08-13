@@ -23,7 +23,7 @@ function StatusIcon({ status }: { status: TaskStatus }) {
     return <CheckCircle2 {...props} />;
   }
   if (status === "running") {
-    return <LoaderCircle {...props} />;
+    return <LoaderCircle {...props} className={styles.spin} />;
   }
   if (status === "failed") {
     return <CircleAlert {...props} />;

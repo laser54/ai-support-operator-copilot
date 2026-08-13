@@ -3,9 +3,26 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-4);
+  transition:
+    border-color var(--duration) var(--ease),
+    transform var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
+}
+
+.card:hover {
+  border-color: color-mix(in srgb, var(--color-text) 18%, var(--color-border));
+  transform: translateY(-1px);
 }
 
 .emphasized {
   box-shadow: var(--shadow-decision);
   border-color: var(--color-review);
+  animation: rise 280ms var(--ease) both;
+}
+
+.emphasized:hover {
+  border-color: var(--color-review);
+  box-shadow:
+    var(--shadow-decision),
+    0 0 40px color-mix(in srgb, var(--color-review) 18%, transparent);
 }

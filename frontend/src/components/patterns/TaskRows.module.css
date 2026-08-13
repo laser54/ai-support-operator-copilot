@@ -19,10 +19,29 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+  transition:
+    border-color var(--duration) var(--ease),
+    background-color var(--duration) var(--ease),
+    transform var(--duration) var(--ease);
+}
+
+.row:hover {
+  border-color: color-mix(in srgb, var(--color-text) 22%, var(--color-border));
+  background: var(--color-surface-muted);
 }
 
 .row[aria-current="step"] {
-  border-color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-review) 70%, var(--color-border));
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
 }
 
 .label {

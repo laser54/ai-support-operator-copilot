@@ -34,6 +34,14 @@
   min-width: var(--control-min);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: transparent;
+  color: inherit;
   cursor: pointer;
+  transition:
+    border-color var(--duration) var(--ease),
+    background-color var(--duration) var(--ease);
+}
+
+.copy:hover {
+  background: var(--color-surface-muted);
 }
