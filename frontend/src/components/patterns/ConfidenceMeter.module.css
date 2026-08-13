@@ -1,0 +1,47 @@
+.confidenceMeter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+.bars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.bar {
+  width: 4px;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  transition: background-color 200ms ease, box-shadow 200ms ease, transform 150ms ease;
+}
+
+/* High level (Emerald Green) */
+.bars[data-level="high"] .activeBar {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+
+/* Medium level (Amber Yellow) */
+.bars[data-level="medium"] .activeBar {
+  background: #fbbf24;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+}
+
+/* Low level (Rose Red) */
+.bars[data-level="low"] .activeBar {
+  background: #f43f5e;
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.5);
+}
+
+.meterText {
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}

@@ -7,6 +7,7 @@ import { queryKeys } from "../../api/queryKeys";
 import { getApiBaseUrl, getCasesApi } from "../../api/runtime";
 import type { CaseResponse, ReviewRequest, TraceResponse } from "../../api/types";
 import { ContextCard } from "../../components/patterns/ContextCard";
+import { ConfidenceMeter } from "../../components/patterns/ConfidenceMeter";
 import { TaskRows } from "../../components/patterns/TaskRows";
 import { Badge } from "../../components/primitives/Badge";
 import { Button } from "../../components/primitives/Button";
@@ -16,7 +17,7 @@ import { SectionHeading } from "../../components/primitives/SectionHeading";
 import { TraceTimeline } from "../trace/TraceTimeline";
 import { eventAnchorId, firstEventOfType, toolEventForSource } from "../trace/labels";
 import { ReviewPanel } from "./ReviewPanel";
-import { confidenceLabel, provenanceLabel, statusLabel, workflowItems } from "./status";
+import { provenanceLabel, statusLabel, workflowItems } from "./status";
 import styles from "./CaseWorkspace.module.css";
 
 type Loaders = {
@@ -135,10 +136,15 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
             </div>
             <SectionHeading icon={MessageSquareQuote}>Request</SectionHeading>
             <blockquote className={styles.quote}>{caseData.request_text}</blockquote>
-            <p>
-              {caseData.triage.category} · {caseData.triage.priority} · {caseData.triage.risk} risk ·{" "}
-              {confidenceLabel(caseData.triage.confidence)}
-            </p>
+            <div className={styles.triageMetaRow}>
+              <span>{caseData.triage.category}</span>
+              <span>·</span>
+              <span>{caseData.triage.priority}</span>
+              <span>·</span>
+              <span>{caseData.triage.risk} risk</span>
+              <span>·</span>
+              <ConfidenceMeter score={caseData.triage.confidence} />
+            </div>
           </Card>
 
           <section className={styles.stack} id="review" tabIndex={-1}>

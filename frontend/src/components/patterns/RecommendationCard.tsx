@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Cpu, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { Card } from "../primitives/Card";
 import { Badge } from "../primitives/Badge";
+import { ConfidenceMeter } from "./ConfidenceMeter";
 import styles from "./RecommendationCard.module.css";
 
 export function RecommendationCard({
@@ -10,12 +11,14 @@ export function RecommendationCard({
   evidenceStrength,
   policyResult,
   uncertainty,
+  confidence,
 }: {
   title: string;
   actionPreview: string;
   evidenceStrength: string;
   policyResult: string;
   uncertainty: string;
+  confidence?: number;
 }) {
   const [showTelemetry, setShowTelemetry] = useState(false);
 
@@ -35,20 +38,6 @@ export function RecommendationCard({
             </span>
           </div>
         </div>
-        <div className={styles.confidenceRing} title="AI Confidence score">
-          <svg viewBox="0 0 36 36" className={styles.ringSvg}>
-            <path
-              className={styles.ringBg}
-              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            />
-            <path
-              className={styles.ringVal}
-              strokeDasharray="88, 100"
-              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            />
-          </svg>
-          <span className={styles.ringText}>88%</span>
-        </div>
       </div>
 
       <p className={styles.preview}>{actionPreview}</p>
@@ -64,6 +53,12 @@ export function RecommendationCard({
           <strong>Uncertainty.</strong> {uncertainty}
         </p>
       </div>
+
+      {confidence !== undefined ? (
+        <div className={styles.meterFooter}>
+          <ConfidenceMeter score={confidence} />
+        </div>
+      ) : null}
 
       <div className={styles.telemetrySection}>
         <button

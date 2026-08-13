@@ -66,44 +66,6 @@
   animation: pulse-dot 1.8s ease-in-out infinite;
 }
 
-.confidenceRing {
-  position: relative;
-  width: 2.75rem;
-  height: 2.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.ringSvg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-
-.ringBg {
-  fill: none;
-  stroke: var(--color-border);
-  stroke-width: 3.5;
-}
-
-.ringVal {
-  fill: none;
-  stroke: var(--color-review);
-  stroke-width: 3.5;
-  stroke-linecap: round;
-  transition: stroke-dasharray 0.6s var(--ease);
-}
-
-.ringText {
-  position: absolute;
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: var(--color-review);
-}
-
 .preview {
   margin: 0;
   font-family: var(--font-mono);
@@ -123,6 +85,41 @@
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.8125rem;
+}
+
+/* Beautiful UI Confidence & Actions Bar */
+.meterFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  flex-wrap: wrap;
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.acceptBtn {
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);
+  transition: background-color var(--duration) var(--ease), transform var(--duration) var(--ease);
+}
+
+.acceptBtn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
 }
 
 .telemetrySection {
