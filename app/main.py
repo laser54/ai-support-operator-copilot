@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.artifacts import router as artifacts_router
 from app.api.cases import router as cases_router
 from app.api.errors import error_envelope
 from app.config import get_settings
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     )
     application.add_exception_handler(HTTPException, handle_http_exception)
     application.include_router(cases_router)
+    application.include_router(artifacts_router)
     application.add_api_route("/health", health, methods=["GET"], tags=["system"])
     return application
 

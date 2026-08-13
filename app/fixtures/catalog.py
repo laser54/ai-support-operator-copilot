@@ -1,6 +1,5 @@
-"""Load and validate versioned synthetic fixture catalogues."""
+"""Load, validate, and manage versioned synthetic fixture catalogues."""
 
-from functools import lru_cache
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -8,6 +7,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.domain.contracts import EvidenceSourceType
 
 FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "fixtures"
+
+_CATALOGUE_FILES = [
+    "knowledge/auth-5xx-after-release.json",
+    "similar_cases.json",
+    "service_status.json",
+]
 
 
 class FixtureEntry(BaseModel):
@@ -31,11 +36,73 @@ class FixtureCatalogue(BaseModel):
     entries: list[FixtureEntry] = Field(min_length=1)
 
 
-@lru_cache
+# In-memory store initialized from fixture files
+_IN_MEMORY_CATALOGUES: dict[str, FixtureCatalogue] = {}
+
+
+def _get_in_memory_catalogues() -> dict[str, FixtureCatalogue]:
+    if not _IN_MEMORY_CATALOGUES:
+        for name in _CATALOGUE_FILES:
+            fixture_path = (FIXTURE_ROOT / name).resolve()
+            if fixture_path.exists():
+                _IN_MEMORY_CATALOGUES[name] = FixtureCatalogue.model_validate_json(
+                    fixture_path.read_text(encoding="utf-8")
+                )
+    return _IN_MEMORY_CATALOGUES
+
+
 def load_catalogue(name: str) -> FixtureCatalogue:
-    """Load a named fixture JSON file and validate its full schema."""
+    """Load a named fixture JSON file or get its in-memory state."""
+
+    catalogues = _get_in_memory_catalogues()
+    if name in catalogues:
+        return catalogues[name]
 
     fixture_path = (FIXTURE_ROOT / name).resolve()
     if fixture_path.suffix != ".json" or FIXTURE_ROOT not in fixture_path.parents:
         raise ValueError("fixture name must identify a JSON file inside the fixture directory")
-    return FixtureCatalogue.model_validate_json(fixture_path.read_text(encoding="utf-8"))
+    cat = FixtureCatalogue.model_validate_json(fixture_path.read_text(encoding="utf-8"))
+    catalogues[name] = cat
+    return cat
+
+
+def list_all_artifacts() -> list[FixtureEntry]:
+    """Return all entries across all fixture catalogues."""
+
+    catalogues = _get_in_memory_catalogues()
+    all_entries: list[FixtureEntry] = []
+    for cat in catalogues.values():
+        all_entries.extend(cat.entries)
+    return all_entries
+
+
+def add_or_update_artifact(entry: FixtureEntry) -> FixtureEntry:
+    """Add a new artifact or update an existing one by source_id."""
+
+    catalogues = _get_in_memory_catalogues()
+    target_file = (
+        "knowledge/auth-5xx-after-release.json"
+        if entry.source_type == "knowledge"
+        else "similar_cases.json"
+        if entry.source_type == "similar_case"
+        else "service_status.json"
+    )
+
+    cat = catalogues.get(target_file)
+    if not cat:
+        cat = load_catalogue(target_file)
+
+    updated = False
+    for catalogue_obj in catalogues.values():
+        for i, existing in enumerate(catalogue_obj.entries):
+            if existing.source_id == entry.source_id:
+                catalogue_obj.entries[i] = entry
+                updated = True
+                break
+        if updated:
+            break
+
+    if not updated:
+        cat.entries.append(entry)
+
+    return entry

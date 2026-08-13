@@ -14,6 +14,15 @@ export type ReviewDecision = "approve" | "reject";
 
 export type ActorType = "system" | "operator" | "tool";
 
+export type ArtifactEntry = {
+  source_type: EvidenceSourceType;
+  source_id: string;
+  title: string;
+  excerpt: string;
+  keywords: string[];
+  observed_at: string;
+};
+
 export type Triage = {
   category: string;
   priority: Priority;

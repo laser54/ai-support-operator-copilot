@@ -1,5 +1,5 @@
 import { DEMO_REQUEST } from "../intake/constants";
-import type { AuditEvent, CaseResponse, TraceResponse } from "../../api/types";
+import type { ArtifactEntry, AuditEvent, CaseResponse, TraceResponse } from "../../api/types";
 
 function event(overrides: Partial<AuditEvent> & Pick<AuditEvent, "id" | "sequence" | "event_type" | "name">): AuditEvent {
   return {
@@ -185,3 +185,96 @@ export const rejectedTrace: TraceResponse = {
     }),
   ],
 };
+
+export const sampleArtifacts: ArtifactEntry[] = [
+  {
+    source_type: "knowledge",
+    source_id: "kb-auth-5xx-after-release",
+    title: "Authentication 5xx after a release",
+    excerpt:
+      "Synthetic runbook: if login begins returning HTTP 500 immediately after a release, declare an access incident, collect the release version and affected environment, then route the incident to Engineering.",
+    keywords: ["sign in", "500 error", "portal", "http 500"],
+    observed_at: "2026-08-12T10:45:00Z",
+  },
+  {
+    source_type: "knowledge",
+    source_id: "kb-vpn-certificate-rotation",
+    title: "VPN failure after certificate rotation",
+    excerpt:
+      "Synthetic runbook: if remote VPN tunnels fail immediately after a certificate rotation, collect the gateway name and certificate expiry, then route to Network Engineering.",
+    keywords: ["vpn", "certificate"],
+    observed_at: "2026-08-12T11:00:00Z",
+  },
+  {
+    source_type: "knowledge",
+    source_id: "kb-invoice-pdf-timeout",
+    title: "Invoice PDF export timeout",
+    excerpt:
+      "Synthetic runbook: if invoice PDF export jobs time out, capture the job ID and tenant, then route to Billing Platform.",
+    keywords: ["invoice", "pdf"],
+    observed_at: "2026-08-12T11:05:00Z",
+  },
+  {
+    source_type: "knowledge",
+    source_id: "kb-sso-mfa-loop",
+    title: "SSO MFA loop",
+    excerpt:
+      "Synthetic runbook: if users loop on SSO MFA after an IdP change, collect the Okta policy name and affected application, then route to Identity.",
+    keywords: ["sso", "mfa", "okta"],
+    observed_at: "2026-08-12T11:15:00Z",
+  },
+  {
+    source_type: "similar_case",
+    source_id: "inc-104",
+    title: "Portal login failures after version 4.8.0",
+    excerpt:
+      "Synthetic incident INC-104: elevated portal login HTTP 500 responses after deployment were owned by Engineering and mitigated by rolling back the authentication adapter.",
+    keywords: ["portal", "500 error", "sign in"],
+    observed_at: "2026-08-12T10:50:00Z",
+  },
+  {
+    source_type: "similar_case",
+    source_id: "inc-218",
+    title: "VPN outage after certificate swap",
+    excerpt:
+      "Synthetic incident INC-218: remote VPN users failed handshake after a certificate rotation; Network Engineering rolled back the gateway cert.",
+    keywords: ["vpn", "certificate"],
+    observed_at: "2026-08-12T11:01:00Z",
+  },
+  {
+    source_type: "similar_case",
+    source_id: "inc-155",
+    title: "Okta MFA loop on SSO",
+    excerpt:
+      "Synthetic incident INC-155: users looped on SSO MFA after an Okta policy publish; Identity reverted the factor rule.",
+    keywords: ["sso", "mfa", "okta"],
+    observed_at: "2026-08-12T11:16:00Z",
+  },
+  {
+    source_type: "service_status",
+    source_id: "status-portal-auth-5xx",
+    title: "Portal authentication status",
+    excerpt:
+      "Synthetic status signal: portal authentication 5xx rate has been elevated since 10:42 UTC after the scheduled update.",
+    keywords: ["portal", "500 error", "sign in"],
+    observed_at: "2026-08-12T10:52:00Z",
+  },
+  {
+    source_type: "service_status",
+    source_id: "status-vpn-gateway",
+    title: "VPN gateway status",
+    excerpt:
+      "Synthetic status signal: VPN gateway handshake failures are elevated after the certificate rotation.",
+    keywords: ["vpn", "certificate"],
+    observed_at: "2026-08-12T11:02:00Z",
+  },
+  {
+    source_type: "service_status",
+    source_id: "status-idp-sso",
+    title: "SSO IdP status",
+    excerpt:
+      "Synthetic status signal: Okta MFA challenge success rate dropped; users report SSO loops.",
+    keywords: ["sso", "mfa", "okta"],
+    observed_at: "2026-08-12T11:17:00Z",
+  },
+];

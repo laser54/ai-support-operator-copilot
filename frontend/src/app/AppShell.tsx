@@ -1,4 +1,4 @@
-import { LayoutGrid, Sparkles } from "lucide-react";
+import { BookOpen, LayoutGrid, Sparkles } from "lucide-react";
 import { NavLink } from "react-router";
 import type { ReactNode } from "react";
 
@@ -18,6 +18,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
         </NavLink>
         <nav className={styles.nav} aria-label="Workspace">
+          <NavLink className={styles.navLink} to="/artifacts">
+            <BookOpen size={15} strokeWidth={2} />
+            <span>Knowledge Catalog</span>
+          </NavLink>
           <NavLink className={styles.cta} to="/cases/new">
             New case
           </NavLink>

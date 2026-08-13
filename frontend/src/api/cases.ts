@@ -1,5 +1,5 @@
 import type { ApiClient } from "./client";
-import type { CaseResponse, ReviewRequest, TraceResponse } from "./types";
+import type { ArtifactEntry, CaseResponse, ReviewRequest, TraceResponse } from "./types";
 
 export function createCasesApi(client: ApiClient) {
   return {
@@ -14,6 +14,12 @@ export function createCasesApi(client: ApiClient) {
     },
     trace(caseId: string) {
       return client.get<TraceResponse>(`/cases/${caseId}/trace`);
+    },
+    listArtifacts() {
+      return client.get<ArtifactEntry[]>("/artifacts");
+    },
+    saveArtifact(artifact: ArtifactEntry) {
+      return client.post<ArtifactEntry>("/artifacts", artifact);
     },
   };
 }
