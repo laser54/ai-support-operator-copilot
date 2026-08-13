@@ -76,6 +76,17 @@ def _clear_catalogue_cache() -> None:
 setattr(load_catalogue, "cache_clear", _clear_catalogue_cache)
 
 
+def delete_artifact(source_id: str) -> bool:
+    """Delete an artifact by stable ID from the in-memory catalogues."""
+
+    for catalogue in _get_in_memory_catalogues().values():
+        for index, entry in enumerate(catalogue.entries):
+            if entry.source_id == source_id:
+                del catalogue.entries[index]
+                return True
+    return False
+
+
 def list_all_artifacts() -> list[FixtureEntry]:
     """Return all entries across all fixture catalogues."""
 

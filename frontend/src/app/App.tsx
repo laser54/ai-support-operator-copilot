@@ -3,7 +3,6 @@ import { Route, Routes } from "react-router";
 
 import { ArtifactsPage } from "../pages/ArtifactsPage";
 import { CasePage } from "../pages/CasePage";
-import { DevComponentsPage } from "../pages/DevComponentsPage";
 import { HomePage } from "../pages/HomePage";
 import { NewCasePage } from "../pages/NewCasePage";
 import { AppShell } from "./AppShell";
@@ -28,7 +27,6 @@ export function App() {
             <Route path="/artifacts" element={<ArtifactsPage />} />
             <Route path="/cases/new" element={<NewCasePage />} />
             <Route path="/cases/:caseId" element={<CasePage />} />
-            <Route path="/dev/components" element={<DevComponentsPage />} />
           </Routes>
         </AppShell>
       </ErrorBoundary>

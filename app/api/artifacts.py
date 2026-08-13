@@ -1,8 +1,13 @@
 """Artifacts catalog API endpoints."""
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 
-from app.fixtures.catalog import FixtureEntry, add_or_update_artifact, list_all_artifacts
+from app.fixtures.catalog import (
+    FixtureEntry,
+    add_or_update_artifact,
+    delete_artifact,
+    list_all_artifacts,
+)
 
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 
@@ -19,3 +24,11 @@ def save_artifact(payload: FixtureEntry) -> FixtureEntry:
     """Create or update an artifact entry in the knowledge catalog."""
 
     return add_or_update_artifact(payload)
+
+
+@router.delete("/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_artifact(source_id: str) -> None:
+    """Delete one artifact from the mutable demo catalogue."""
+
+    if not delete_artifact(source_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="artifact not found")

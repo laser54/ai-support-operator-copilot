@@ -1,4 +1,4 @@
-import { BookOpen, LayoutGrid, Sparkles } from "lucide-react";
+import { BookOpen, Sparkles } from "lucide-react";
 import { NavLink } from "react-router";
 import type { ReactNode } from "react";
 
@@ -24,9 +24,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </NavLink>
           <NavLink className={styles.cta} to="/cases/new">
             New case
-          </NavLink>
-          <NavLink className={styles.iconLink} to="/dev/components" aria-label="Component gallery">
-            <LayoutGrid size={16} strokeWidth={2} />
           </NavLink>
         </nav>
       </header>

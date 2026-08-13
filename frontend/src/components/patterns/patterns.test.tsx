@@ -101,9 +101,9 @@ describe("workflow patterns", () => {
 });
 
 describe("application shell", () => {
-  it("renders landmarks, header navigation, and the component gallery", () => {
+  it("renders workspace navigation without the retired component gallery", () => {
     render(
-      <MemoryRouter initialEntries={["/dev/components"]}>
+      <MemoryRouter initialEntries={["/"]}>
         <App />
       </MemoryRouter>,
     );
@@ -111,13 +111,7 @@ describe("application shell", () => {
     expect(screen.getByRole("banner")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Workspace" })).toBeInTheDocument();
     expect(screen.getByRole("main")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Component gallery" }),
-    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "New case" })).toHaveAttribute("href", "/cases/new");
-    expect(screen.getByRole("link", { name: "Component gallery" })).toHaveAttribute(
-      "href",
-      "/dev/components",
-    );
+    expect(screen.queryByRole("link", { name: "Component gallery" })).not.toBeInTheDocument();
   });
 });

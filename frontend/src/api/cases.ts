@@ -21,5 +21,8 @@ export function createCasesApi(client: ApiClient) {
     saveArtifact(artifact: ArtifactEntry) {
       return client.post<ArtifactEntry>("/artifacts", artifact);
     },
+    deleteArtifact(sourceId: string) {
+      return client.delete(`/artifacts/${encodeURIComponent(sourceId)}`);
+    },
   };
 }

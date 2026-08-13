@@ -9,6 +9,7 @@ import {
   SquarePen,
   Search,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 
 import { createApiClient } from "../api/client";
@@ -50,6 +51,7 @@ export function ArtifactsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingArtifact, setEditingArtifact] = useState<ArtifactEntry | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [artifactPendingDeletion, setArtifactPendingDeletion] = useState<ArtifactEntry | null>(null);
 
   // Form state
   const [formSourceType, setFormSourceType] = useState<EvidenceSourceType>("knowledge");
@@ -90,6 +92,25 @@ export function ArtifactsPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["artifacts"] });
       closeForm();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (sourceId: string) => {
+      try {
+        const casesApi = createCasesApi(createApiClient({ baseUrl: getApiBaseUrl() }));
+        await casesApi.deleteArtifact(sourceId);
+      } catch {
+        const index = sampleArtifacts.findIndex((item) => item.source_id === sourceId);
+        if (index < 0) {
+          throw new Error("Artifact was not found");
+        }
+        sampleArtifacts.splice(index, 1);
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["artifacts"] });
+      setArtifactPendingDeletion(null);
     },
   });
 
@@ -247,14 +268,24 @@ export function ArtifactsPage() {
             <Card key={item.source_id} tone={cardTone} className={styles.artifactCard}>
               <div className={styles.artifactHeader}>
                 <Badge tone={tone}>{CATEGORY_LABELS[item.source_type]}</Badge>
-                <Button
-                  variant="secondary"
-                  className={styles.editBtn}
-                  onClick={() => openEditForm(item)}
-                  aria-label={`Edit ${item.source_id}`}
-                >
-                  <SquarePen size={13} /> Edit
-                </Button>
+                <div className={styles.cardActions}>
+                  <Button
+                    variant="secondary"
+                    className={styles.editBtn}
+                    onClick={() => openEditForm(item)}
+                    aria-label={`Edit ${item.source_id}`}
+                  >
+                    <SquarePen size={13} /> Edit
+                  </Button>
+                  <Button
+                    variant="danger"
+                    className={styles.editBtn}
+                    onClick={() => setArtifactPendingDeletion(item)}
+                    aria-label={`Delete ${item.source_id}`}
+                  >
+                    <Trash2 size={13} /> Delete
+                  </Button>
+                </div>
               </div>
 
               <h2 className={styles.cardTitle}>{item.title}</h2>
@@ -358,6 +389,39 @@ export function ArtifactsPage() {
             </Button>
           </div>
         </form>
+      </Dialog>
+
+      <Dialog
+        open={artifactPendingDeletion !== null}
+        title="Delete artifact?"
+        busy={deleteMutation.isPending}
+        onClose={() => setArtifactPendingDeletion(null)}
+      >
+        <p style={{ color: "var(--color-text-muted)", margin: 0 }}>
+          Delete <strong>{artifactPendingDeletion?.title}</strong>? This cannot be undone for the current demo session.
+        </p>
+        <div className={styles.dialogActions}>
+          <Button
+            variant="secondary"
+            type="button"
+            disabled={deleteMutation.isPending}
+            onClick={() => setArtifactPendingDeletion(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            type="button"
+            loading={deleteMutation.isPending}
+            onClick={() => {
+              if (artifactPendingDeletion) {
+                deleteMutation.mutate(artifactPendingDeletion.source_id);
+              }
+            }}
+          >
+            Delete artifact
+          </Button>
+        </div>
       </Dialog>
     </div>
   );

@@ -1,7 +1,7 @@
 """Tests for deterministic synthetic fixture catalogues."""
 
 from app.domain.contracts import EvidenceSourceType
-from app.fixtures.catalog import load_catalogue
+from app.fixtures.catalog import delete_artifact, list_all_artifacts, load_catalogue
 
 load_catalogue.cache_clear()
 
@@ -40,3 +40,14 @@ def test_fixture_catalogues_have_stable_traceable_sources() -> None:
         EvidenceSourceType.SERVICE_STATUS,
     }
     assert all("synthetic" in entry.excerpt.lower() for entry in entries)
+
+
+def test_delete_artifact_removes_only_the_target_entry() -> None:
+    load_catalogue.cache_clear()
+    try:
+        assert delete_artifact("inc-104") is True
+        assert "inc-104" not in {entry.source_id for entry in list_all_artifacts()}
+        assert "kb-auth-5xx-after-release" in {entry.source_id for entry in list_all_artifacts()}
+        assert delete_artifact("missing-artifact") is False
+    finally:
+        load_catalogue.cache_clear()

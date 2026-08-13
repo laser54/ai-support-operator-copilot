@@ -13,6 +13,7 @@ export class ApiError extends Error {
 export type ApiClient = {
   get: <T>(path: string) => Promise<T>;
   post: <T>(path: string, body: unknown) => Promise<T>;
+  delete: (path: string) => Promise<void>;
 };
 
 type ApiClientOptions = {
@@ -47,6 +48,12 @@ async function readJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function readEmpty(response: Response): Promise<void> {
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+}
+
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const fetchImpl = options.fetchImpl ?? fetch;
 
@@ -69,6 +76,13 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         body: JSON.stringify(body),
       });
       return readJson<T>(response);
+    },
+    async delete(path: string): Promise<void> {
+      const response = await fetchImpl(joinUrl(options.baseUrl, path), {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+      await readEmpty(response);
     },
   };
 }
