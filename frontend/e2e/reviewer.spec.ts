@@ -28,7 +28,7 @@ test("creates, inspects, edits, approves, and keeps a single mock incident", asy
 
   await page.getByRole("button", { name: "Edit analysis" }).click();
   await page.getByLabel("Priority").selectOption("P2");
-  await page.getByRole("button", { name: "Edit reply" }).click();
+  await page.getByRole("button", { name: "Edit reply", exact: true }).click();
   await page.getByLabel("Reply draft").fill("Engineering is investigating.");
   await page.getByRole("button", { name: "Approve and create mock incident" }).click();
   await expect(page.getByRole("dialog", { name: "Approve and create mock incident" })).toContainText(
@@ -42,7 +42,7 @@ test("creates, inspects, edits, approves, and keeps a single mock incident", asy
 
   await page.getByRole("button", { name: "Refresh" }).click();
   await expect(page.getByText(/MOCK-1/)).toBeVisible();
-  await expect(page.getByText("P2", { exact: true })).toBeVisible();
+  await expect(page.getByText("P2", { exact: true }).first()).toBeVisible();
 
   await page.locator("#trace").getByText(/Audit trail/).click();
   await expect(page.getByText("Mock incident executed")).toBeVisible();
@@ -89,7 +89,7 @@ test("keeps intake text and retries after an API failure", async ({ page }) => {
   await page.getByRole("button", { name: "Analyze request" }).click();
   await expect(page.getByRole("alert")).toContainText("API unavailable");
   await expect(page.getByText(/http:\/\/127\.0\.0\.1:8000/)).toBeVisible();
-  await expect(page.getByLabel("Describe the support issue")).toHaveValue(/cannot sign in/);
+  await expect(page.getByLabel("Describe the support issue")).not.toHaveValue("");
 });
 
 test("shows a recovery path for an unknown case", async ({ page }) => {

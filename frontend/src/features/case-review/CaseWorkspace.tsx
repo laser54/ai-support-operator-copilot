@@ -251,7 +251,7 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
                   variant="secondary"
                   className={styles.quickEditBtn}
                   onClick={() => scrollToSection("outcome")}
-                  aria-label="Edit reply draft in review panel"
+                  aria-label="Open reply edit controls"
                 >
                   <Pencil size={13} aria-hidden="true" /> Edit reply draft
                 </Button>
