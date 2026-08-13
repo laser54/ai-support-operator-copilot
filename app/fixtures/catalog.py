@@ -66,6 +66,16 @@ def load_catalogue(name: str) -> FixtureCatalogue:
     return cat
 
 
+def _clear_catalogue_cache() -> None:
+    """Reset mutable fixture state for tests and explicit local refreshes."""
+
+    _IN_MEMORY_CATALOGUES.clear()
+
+
+# Backward-compatible public reset hook used by fixture consumers and tests.
+setattr(load_catalogue, "cache_clear", _clear_catalogue_cache)
+
+
 def list_all_artifacts() -> list[FixtureEntry]:
     """Return all entries across all fixture catalogues."""
 
