@@ -1,0 +1,9 @@
+.region {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.status {
+  margin: 0;
+  color: var(--color-text-muted);
+}

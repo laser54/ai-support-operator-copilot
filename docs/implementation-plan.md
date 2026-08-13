@@ -7,7 +7,7 @@ This document is the authoritative sequential implementation guide for the repos
 **Current milestone:** MVP vertical slice
 
 **Current phase:** 9 — Reviewer frontend and Vercel Hobby deployment
-**Overall status:** 9.1 complete; 9.2 is next
+**Overall status:** 9.2 complete; 9.3 is next
 
 ## Status legend
 
@@ -214,6 +214,12 @@ Scope: Subphase 9.1 — React/TypeScript/Vite frontend scaffold, typed fetch wra
 Verification: `uv run pytest tests/test_http_errors.py tests/test_health.py -q` passed; `uv run ruff check app tests` passed; `uv run mypy app` passed; `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build` with `VITE_API_BASE_URL=http://127.0.0.1:8000` passed in `frontend/`; production build without `VITE_API_BASE_URL` failed with the required configuration error.
 Documentation: Updated `README.md`, `PROJECT_CONTEXT.md`, `docs/architecture.md`, `docs/frontend-plan.md`, `.env.example`, and this roadmap.
 Follow-up: Continue with subphase 9.2 (tokens, primitives, application shell). Do not mark phase 9 complete until 9.8.
+
+Completed: 2026-08-13
+Scope: Subphase 9.2 — design tokens, UI primitives, Beautiful UI pattern adaptations, application shell, error boundary, and `/dev/components` gallery.
+Verification: `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build` with `VITE_API_BASE_URL=http://127.0.0.1:8000` passed in `frontend/`.
+Documentation: Updated `docs/frontend-plan.md`, `docs/frontend-patterns.md`, `docs/architecture.md`, `PROJECT_CONTEXT.md`, `README.md`, and this roadmap.
+Follow-up: Continue with subphase 9.3 (product entry and intake). Do not mark phase 9 complete until 9.8.
 
 ## MVP boundaries
 

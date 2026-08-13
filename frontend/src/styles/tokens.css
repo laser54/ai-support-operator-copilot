@@ -1,0 +1,44 @@
+:root {
+  --color-canvas: #f4f1ea;
+  --color-surface: #fffcf7;
+  --color-surface-muted: #ece7dd;
+  --color-text: #1c1917;
+  --color-text-muted: #44403c;
+  --color-border: #d6d0c4;
+  --color-primary: #2c3180;
+  --color-primary-fg: #f8fafc;
+  --color-evidence: #0f766e;
+  --color-review: #6d28d9;
+  --color-success: #166534;
+  --color-warning: #92400e;
+  --color-danger: #9f1239;
+  --color-info: #1e3a8a;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.75rem;
+  --shadow-overlay: 0 16px 40px rgb(28 25 23 / 18%);
+  --shadow-decision: 0 8px 24px rgb(44 49 128 / 16%);
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "Cascadia Mono", "SFMono-Regular", ui-monospace, monospace;
+  --font-size-body: 1rem;
+  --font-size-sm: 0.875rem;
+  --line-height: 1.5;
+  --focus-ring: 2px solid var(--color-primary);
+  --focus-offset: 2px;
+  --control-min: 2.75rem;
+  --duration: 180ms;
+  --content-max: 72rem;
+  --prose-max: 42rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration: 0.01ms;
+  }
+}

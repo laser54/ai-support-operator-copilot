@@ -187,14 +187,15 @@ npm run dev
 `frontend/.env.development` points at `http://127.0.0.1:8000`. Start the API
 separately. Production builds require `VITE_API_BASE_URL` to be set; an absent
 or invalid value fails the build. The frontend never receives `LLM_API_KEY` or
-`DATABASE_URL`.
+`DATABASE_URL`. Open `/dev/components` for the primitive gallery. Pattern
+accessibility states are in [docs/frontend-patterns.md](docs/frontend-patterns.md).
 
 CORS defaults to the local Vite origins. Override with `CORS_ALLOW_ORIGINS` in
 the API environment.
 
 ## Status
 
-**API MVP implemented.** Frontend subphase 9.1 (foundation) is implemented;
+**API MVP implemented.** Frontend subphases 9.1–9.2 are implemented;
 intake, review workspace, and Vercel deployment are still planned.
 
 ## Related work

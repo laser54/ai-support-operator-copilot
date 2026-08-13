@@ -248,4 +248,6 @@ scope until authentication is designed.
 
 The detailed information architecture, visual direction, accessibility rules,
 API prerequisites, testing matrix, and phased delivery plan are maintained in
-[frontend-plan.md](frontend-plan.md).
+[frontend-plan.md](frontend-plan.md). Pattern-level keyboard, screen-reader,
+reduced-motion, and narrow-screen states are in
+[frontend-patterns.md](frontend-patterns.md).

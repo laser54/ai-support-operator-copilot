@@ -1,0 +1,19 @@
+.card {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.title {
+  margin: 0;
+}
+
+.summary,
+.policy {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

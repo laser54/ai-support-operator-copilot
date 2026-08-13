@@ -1,8 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router";
 
 import { App } from "./app/App";
 import { requireApiBaseUrl } from "./api/env";
+import "./styles/global.css";
 
 requireApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
@@ -13,6 +15,8 @@ if (root === null) {
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   </StrictMode>,
 );

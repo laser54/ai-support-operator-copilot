@@ -443,6 +443,8 @@ Acceptance:
 
 ### Step 9.2 — Tokens, primitives, and application shell
 
+Status: implemented.
+
 Deliver:
 
 - color, type, spacing, radius, elevation, and focus tokens;
@@ -462,7 +464,7 @@ Acceptance:
 - no page-specific hard-coded status colors bypass tokens;
 - every adopted Beautiful UI pattern satisfies the adaptation rules above and
   has a documented keyboard, screen-reader, reduced-motion, and narrow-screen
-  state.
+  state in [frontend-patterns.md](frontend-patterns.md).
 
 ### Step 9.3 — Product entry and intake
 

@@ -1,0 +1,19 @@
+.card {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.title,
+.preview,
+.meta {
+  margin: 0;
+}
+
+.preview {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.meta {
+  color: var(--color-text-muted);
+}
