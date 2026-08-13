@@ -20,7 +20,11 @@ export function RecommendationCard({
   const [showTelemetry, setShowTelemetry] = useState(false);
 
   return (
-    <Card className={styles.card}>
+    <Card className={styles.card} tone="ai">
+      <div className={styles.categoryBanner}>
+        <Sparkles size={12} className={styles.bannerIcon} aria-hidden="true" />
+        <span>AI Proposed Resolution Brief</span>
+      </div>
       <div className={styles.header}>
         <div>
           <h2 className={styles.title}>{title}</h2>

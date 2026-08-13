@@ -1,4 +1,4 @@
-import { Activity, BookOpen, Copy, Files } from "lucide-react";
+import { Activity, BookOpen, Copy, Files, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { Badge } from "../primitives/Badge";
@@ -35,6 +35,10 @@ export function ContextCard({
 
   return (
     <Card className={styles.card} tone="evidence">
+      <div className={styles.categoryBanner}>
+        <Search size={12} className={styles.bannerIcon} aria-hidden="true" />
+        <span>Agent Discovered Evidence</span>
+      </div>
       <div className={styles.header}>
         <span className={styles.typeIcon} aria-hidden="true">
           <Icon size={14} strokeWidth={2} />

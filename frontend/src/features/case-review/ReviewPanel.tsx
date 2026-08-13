@@ -97,6 +97,10 @@ export function ReviewPanel({
   return (
     <div className={styles.stack}>
       <Card tone="human">
+        <div className={styles.cardBannerHuman}>
+          <Shield size={12} aria-hidden="true" />
+          <span>Human Review Gate · Operator Action Required</span>
+        </div>
         <SectionHeading icon={Shield} mark="Human gate">
           Human edits
         </SectionHeading>

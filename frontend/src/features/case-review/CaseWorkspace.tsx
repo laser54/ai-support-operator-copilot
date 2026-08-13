@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, BookOpen, MessageSquareQuote, PenLine, Sparkles, User } from "lucide-react";
+import { AlertCircle, BookOpen, MessageSquareQuote, Pencil, PenLine, Sparkles, User } from "lucide-react";
 import { Link, useParams } from "react-router";
 
 import { ApiError } from "../../api/client";
@@ -129,6 +129,10 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
         </nav>
         <div className={styles.stack}>
           <Card as="section" id="request" tabIndex={-1} tone="request">
+            <div className={styles.cardBannerInfo}>
+              <User size={12} aria-hidden="true" />
+              <span>Customer Request</span>
+            </div>
             <SectionHeading icon={MessageSquareQuote}>Request</SectionHeading>
             <blockquote className={styles.quote}>{caseData.request_text}</blockquote>
             <p>
@@ -139,7 +143,25 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
 
           <section className={styles.stack} id="review" tabIndex={-1}>
             <Card tone="facts">
-              <SectionHeading icon={User}>Reported facts</SectionHeading>
+              <div className={styles.cardBannerFacts}>
+                <Sparkles size={12} aria-hidden="true" />
+                <span>AI Extracted Facts</span>
+              </div>
+              <div className={styles.sectionHeaderWithAction}>
+                <SectionHeading icon={User} mark="AI extracted">
+                  Reported facts
+                </SectionHeading>
+                {caseData.status === "awaiting_human_review" ? (
+                  <Button
+                    variant="secondary"
+                    className={styles.quickEditBtn}
+                    onClick={() => scrollToSection("outcome")}
+                    aria-label="Edit facts in review panel"
+                  >
+                    <Pencil size={13} aria-hidden="true" /> Edit facts
+                  </Button>
+                ) : null}
+              </div>
               {caseData.resolution_brief.requester_facts.length > 0 ? (
                 <ul className={styles.list}>
                   {caseData.resolution_brief.requester_facts.map((fact) => (
@@ -151,6 +173,10 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
               )}
             </Card>
             <Card tone="ai">
+              <div className={styles.cardBannerAi}>
+                <Sparkles size={12} aria-hidden="true" />
+                <span>System Inferences</span>
+              </div>
               <SectionHeading icon={Sparkles} mark={provenanceLabel(caseData)}>
                 System inferences
               </SectionHeading>
@@ -206,9 +232,25 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
           </section>
 
           <Card as="section" id="brief" tabIndex={-1} tone="ai">
-            <SectionHeading icon={PenLine} mark="AI draft">
-              Resolution brief
-            </SectionHeading>
+            <div className={styles.cardBannerAi}>
+              <Sparkles size={12} aria-hidden="true" />
+              <span>AI Generated Brief</span>
+            </div>
+            <div className={styles.sectionHeaderWithAction}>
+              <SectionHeading icon={PenLine} mark="AI draft">
+                Resolution brief
+              </SectionHeading>
+              {caseData.status === "awaiting_human_review" ? (
+                <Button
+                  variant="secondary"
+                  className={styles.quickEditBtn}
+                  onClick={() => scrollToSection("outcome")}
+                  aria-label="Edit reply draft in review panel"
+                >
+                  <Pencil size={13} aria-hidden="true" /> Edit reply draft
+                </Button>
+              ) : null}
+            </div>
             <p>Edit the customer-facing reply in Human review before you decide.</p>
           </Card>
 
