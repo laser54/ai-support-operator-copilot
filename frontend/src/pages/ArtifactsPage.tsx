@@ -380,7 +380,7 @@ export function ArtifactsPage() {
             required
           />
 
-          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", marginTop: "1rem" }}>
+          <div className={styles.formActions}>
             <Button variant="secondary" onClick={closeForm} type="button">
               Cancel
             </Button>
