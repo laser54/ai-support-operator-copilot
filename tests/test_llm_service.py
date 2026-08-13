@@ -1,5 +1,9 @@
 """Tests for the validated model boundary and deterministic fallback."""
 
+import json
+
+import httpx
+
 from app.config import Settings
 from app.domain.contracts import (
     ActionState,
@@ -9,7 +13,7 @@ from app.domain.contracts import (
     RiskLevel,
     Triage,
 )
-from app.llm.service import ModelOutput, TriageAndBriefService
+from app.llm.service import ModelOutput, OpenAICompatibleClient, TriageAndBriefService
 
 
 class ValidClient:
@@ -37,7 +41,9 @@ class InvalidClient:
 
 
 def test_missing_credentials_uses_deterministic_login_500_fallback() -> None:
-    result = TriageAndBriefService(Settings()).generate(
+    result = TriageAndBriefService(
+        Settings(llm_api_key=None, llm_base_url=None, llm_model=None)
+    ).generate(
         "After the update, employees cannot login and see HTTP 500.", []
     )
 
@@ -76,3 +82,54 @@ def test_invalid_provider_output_uses_fallback_without_exposing_error_details() 
     assert result.provider == "deterministic_fallback"
     assert result.fallback_reason == "provider_output_unavailable"
     assert "invalid structured output" not in (result.fallback_reason or "")
+
+
+def test_openai_client_sends_complete_schema_and_parses_typed_output() -> None:
+    captured_payload: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_payload.update(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "triage": {
+                                        "category": "incident/access",
+                                        "priority": "P1",
+                                        "risk": "high",
+                                        "confidence": 0.92,
+                                        "missing_information": ["affected account example"],
+                                    },
+                                    "requester_facts": ["Sales employees cannot sign in."],
+                                    "inferences": [
+                                        "The update may have caused an access incident."
+                                    ],
+                                    "missing_information": ["affected account example"],
+                                    "reply_draft": "Engineering is investigating the access issue.",
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    client = OpenAICompatibleClient(
+        api_key="test-key",
+        base_url="https://provider.example/v1",
+        model="test-model",
+        transport=httpx.MockTransport(handler),
+    )
+
+    output = client.generate("Portal login returns HTTP 500.", [])
+
+    assert output.triage.priority is Priority.P1
+    assert captured_payload["response_format"] == {"type": "json_object"}
+    system_prompt = captured_payload["messages"][0]["content"]  # type: ignore[index]
+    assert '"triage"' in system_prompt
+    assert '"reply_draft"' in system_prompt
+    assert '"priority": "P1" | "P2" | "P3"' in system_prompt

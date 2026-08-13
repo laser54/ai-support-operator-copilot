@@ -127,6 +127,12 @@ Verification: `uv run pytest -q` passed (11 tests, 2 PostgreSQL tests skipped wi
 Documentation: Updated `README.md`, `docs/architecture.md`, `PROJECT_CONTEXT.md`, and this roadmap.
 Follow-up: Build the persisted LangGraph workflow and case intake/read API in phase 6.
 
+Updated: 2026-08-13
+Scope: Hardened the OpenAI-compatible prompt with the complete typed JSON contract and constrained sampling; added a transport-level regression test for the payload and validation path; configured .env.example for OpenCode Go DeepSeek V4 Flash.
+Verification: OpenCode Go provider smoke test returned openai_compatible with P1/high triage and no fallback; `uv run pytest tests/test_llm_service.py -q` passed (4 tests); `uv run ruff check app tests` and `uv run mypy app` passed.
+Documentation: Updated .env.example, README.md, docs/architecture.md, and this roadmap.
+Follow-up: Keep the deterministic fallback enabled and add broader scenario evaluation before relying on provider output beyond the MVP fixtures.
+
 ### 6. LangGraph workflow and intake API — completed
 
 **Dependencies:** phase 5 completed.

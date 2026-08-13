@@ -146,6 +146,16 @@ the typed contract. Provider errors and credentials are not returned in the
 result. In every mode, proposed actions are drafts created by application code;
 model output cannot execute or authorize a write.
 
+The supplied .env.example is configured for OpenCode Go with DeepSeek V4
+Flash:
+
+LLM_BASE_URL=https://opencode.ai/zen/go/v1
+LLM_MODEL=deepseek-v4-flash
+
+Set only LLM_API_KEY in your local .env. The provider prompt contains the
+exact JSON contract required by the API, uses deterministic sampling
+(temperature: 0), and rejects any response that fails Pydantic validation.
+
 ## Implemented case API
 
 After applying migrations and starting PostgreSQL, the API now exposes:

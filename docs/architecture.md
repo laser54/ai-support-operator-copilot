@@ -67,11 +67,16 @@ operate on the persisted checkpoint and audit trail.
 ### Implemented model boundary and fallback
 
 `app.llm.service` implements the analytical model boundary. The
-OpenAI-compatible adapter asks for JSON and validates it as `ModelOutput`,
-which contains only triage, facts, inferences, missing information, and a reply
-draft. It cannot supply actions, approvals, execution state, or tool results.
+OpenAI-compatible adapter requests JSON with an explicit `ModelOutput` contract,
+uses `temperature: 0`, and validates the result as `ModelOutput`, which contains
+only triage, facts, inferences, missing information, and a reply draft. It
+cannot supply actions, approvals, execution state, or tool results.
 Application code constructs the two proposal drafts after validation, so each
 write-capable action remains `proposed` and requires the later policy gate.
+
+The default local configuration targets OpenCode Go's
+`https://opencode.ai/zen/go/v1` endpoint with `deepseek-v4-flash`. Its base URL
+excludes `/chat/completions` because the adapter appends that path.
 
 When `LLM_API_KEY`, `LLM_BASE_URL`, or `LLM_MODEL` is absent, or when a provider
 request or validation fails, `TriageAndBriefService` returns a deterministic
