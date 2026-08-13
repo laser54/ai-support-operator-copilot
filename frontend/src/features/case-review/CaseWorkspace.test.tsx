@@ -93,6 +93,14 @@ describe("CaseWorkspace", () => {
     );
   });
 
+  it("shows the configured API origin when the case cannot be loaded", async () => {
+    renderWorkspace({
+      loadCase: vi.fn().mockRejectedValue(new Error("API unavailable")),
+    });
+    expect(await screen.findByText(/API unavailable/)).toBeInTheDocument();
+    expect(screen.getByText(/http:\/\/127\.0\.0\.1:8000/)).toBeInTheDocument();
+  });
+
   it("copies the case ID and evidence source IDs", async () => {
     const { user, copyText } = renderWorkspace();
     await screen.findByText("Waiting for review");

@@ -7,7 +7,7 @@ This document is the authoritative sequential implementation guide for the repos
 **Current milestone:** MVP vertical slice
 
 **Current phase:** 9 — Reviewer frontend and Vercel Hobby deployment
-**Overall status:** 9.6 complete; 9.7 is next
+**Overall status:** 9.7 complete; 9.8 is next
 
 ## Status legend
 
@@ -244,6 +244,12 @@ Scope: Subphase 9.6 — ordered audit timeline with human-readable labels, categ
 Verification: `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build` with `VITE_API_BASE_URL=http://127.0.0.1:8000` passed in `frontend/`.
 Documentation: Updated `docs/frontend-plan.md`, `PROJECT_CONTEXT.md`, `README.md`, and this roadmap.
 Follow-up: Continue with subphase 9.7 (end-to-end quality and polish). Do not mark phase 9 complete until 9.8.
+
+Completed: 2026-08-13
+Scope: Subphase 9.7 — Playwright reviewer journey (create, inspect, edit/approve, repeat-approve UI, reject, refresh, API failure, 404), breakpoint screenshots, axe critical/serious scan, empty-state and API-origin error copy, production bundle credential scan, and CI e2e.
+Verification: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` with `VITE_API_BASE_URL=http://127.0.0.1:8000`, `npm run check:bundle`, and `npm run test:e2e` passed in `frontend/`.
+Documentation: Updated `docs/frontend-plan.md`, `PROJECT_CONTEXT.md`, `README.md`, `.github/workflows/ci.yml`, and this roadmap.
+Follow-up: Continue with subphase 9.8 (static deployment and handoff). Do not mark phase 9 complete until 9.8.
 
 ## MVP boundaries
 

@@ -539,6 +539,8 @@ Acceptance:
 
 ### Step 9.7 — End-to-end quality and polish
 
+Status: implemented.
+
 Deliver:
 
 - Vitest/Testing Library coverage for components and mutations;

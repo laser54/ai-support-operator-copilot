@@ -19,6 +19,7 @@ export function ReviewPanel({
   caseData,
   busy,
   error,
+  conflict = false,
   policyTraceHref = "#trace",
   executionTraceHref = "#trace",
   onSubmit,
@@ -26,6 +27,7 @@ export function ReviewPanel({
   caseData: CaseResponse;
   busy: boolean;
   error?: string;
+  conflict?: boolean;
   policyTraceHref?: string;
   executionTraceHref?: string;
   onSubmit: (body: ReviewRequest) => void;
@@ -62,14 +64,16 @@ export function ReviewPanel({
   if (caseData.status === "completed") {
     return (
       <Callout tone="success" title="Mock incident created">
-        <p>
-          Reference {mockRef ?? "unavailable"}.{" "}
-          {incident?.execution_result?.executed_at
-            ? `Recorded at ${incident.execution_result.executed_at}.`
-            : null}
-        </p>
-        <p>Repeated approval will not create another incident.</p>
-        <a href={executionTraceHref}>View in trace</a>
+        <div aria-live="polite">
+          <p>
+            Reference {mockRef ?? "unavailable"}.{" "}
+            {incident?.execution_result?.executed_at
+              ? `Recorded at ${incident.execution_result.executed_at}.`
+              : null}
+          </p>
+          <p>Repeated approval will not create another incident.</p>
+          <a href={executionTraceHref}>View in trace</a>
+        </div>
       </Callout>
     );
   }
@@ -77,7 +81,7 @@ export function ReviewPanel({
   if (caseData.status === "rejected") {
     return (
       <Callout tone="info" title="Proposal rejected">
-        <p>No incident was created. The write action stayed blocked.</p>
+        <p aria-live="polite">No incident was created. The write action stayed blocked.</p>
       </Callout>
     );
   }
@@ -184,6 +188,7 @@ export function ReviewPanel({
       {error ? (
         <Callout tone="danger" title="The review could not be saved">
           <p role="alert">{error}</p>
+          {conflict ? <p>Refresh the case, then confirm the decision again.</p> : null}
         </Callout>
       ) : null}
 

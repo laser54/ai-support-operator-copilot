@@ -190,13 +190,26 @@ or invalid value fails the build. The frontend never receives `LLM_API_KEY` or
 `DATABASE_URL`. Open `/dev/components` for the primitive gallery. Pattern
 accessibility states are in [docs/frontend-patterns.md](docs/frontend-patterns.md).
 
+Frontend checks:
+
+```powershell
+cd frontend
+npm test
+npm run lint
+npm run typecheck
+$env:VITE_API_BASE_URL="http://127.0.0.1:8000"; npm run build
+npm run check:bundle
+npx playwright install chromium
+npm run test:e2e
+```
+
 CORS defaults to the local Vite origins. Override with `CORS_ALLOW_ORIGINS` in
 the API environment.
 
 ## Status
 
-**API MVP implemented.** Frontend subphases 9.1–9.6 are implemented;
-end-to-end polish and Vercel deployment are still planned.
+**API MVP implemented.** Frontend subphases 9.1–9.7 are implemented;
+Vercel deployment is still planned.
 
 ## Related work
 

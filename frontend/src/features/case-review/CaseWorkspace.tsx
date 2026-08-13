@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router";
 
 import { ApiError } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
-import { getCasesApi } from "../../api/runtime";
+import { getApiBaseUrl, getCasesApi } from "../../api/runtime";
 import type { CaseResponse, ReviewRequest, TraceResponse } from "../../api/types";
 import { ContextCard } from "../../components/patterns/ContextCard";
 import { LoadingState } from "../../components/patterns/LoadingState";
@@ -71,6 +71,7 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
     return (
       <Callout tone="danger" title="The case could not be loaded">
         <p>{caseQuery.error.message}</p>
+        <p>Retry against {getApiBaseUrl()}.</p>
         <Button onClick={() => void caseQuery.refetch()}>Retry</Button>
       </Callout>
     );
@@ -135,32 +136,47 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
           <section className={styles.stack} id="review" tabIndex={-1}>
             <Card>
               <h2>Reported facts</h2>
-              <ul className={styles.list}>
-                {caseData.resolution_brief.requester_facts.map((fact) => (
-                  <li key={fact}>{fact}</li>
-                ))}
-              </ul>
+              {caseData.resolution_brief.requester_facts.length > 0 ? (
+                <ul className={styles.list}>
+                  {caseData.resolution_brief.requester_facts.map((fact) => (
+                    <li key={fact}>{fact}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No requester facts were stored for this case.</p>
+              )}
             </Card>
             <Card>
               <h2>System inferences</h2>
               <Badge>AI inference</Badge>
-              <ul className={styles.list}>
-                {caseData.resolution_brief.inferences.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+              {caseData.resolution_brief.inferences.length > 0 ? (
+                <ul className={styles.list}>
+                  {caseData.resolution_brief.inferences.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No system inferences were stored for this case.</p>
+              )}
             </Card>
             <Callout tone="warning" title="Still needed">
-              <ul className={styles.list}>
-                {caseData.resolution_brief.missing_information.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+              {caseData.resolution_brief.missing_information.length > 0 ? (
+                <ul className={styles.list}>
+                  {caseData.resolution_brief.missing_information.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No missing information was listed.</p>
+              )}
             </Callout>
           </section>
 
           <section className={styles.stack} id="evidence" tabIndex={-1}>
             <h2>Evidence</h2>
+            {caseData.evidence.length === 0 ? (
+              <p>No fixture evidence was stored for this case.</p>
+            ) : null}
             {caseData.evidence.map((item) => {
               const toolEvent = toolEventForSource(events, item.source_id);
               return (
@@ -194,6 +210,9 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
               caseData={caseData}
               busy={reviewMutation.isPending}
               error={reviewMutation.error?.message}
+              conflict={
+                reviewMutation.error instanceof ApiError && reviewMutation.error.status === 409
+              }
               policyTraceHref={policyEvent ? `#${eventAnchorId(policyEvent)}` : "#trace"}
               executionTraceHref={executionEvent ? `#${eventAnchorId(executionEvent)}` : "#trace"}
               onSubmit={(body) => reviewMutation.mutate(body)}

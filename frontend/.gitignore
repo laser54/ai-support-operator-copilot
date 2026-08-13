@@ -7,9 +7,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+playwright-report/
+test-results/
+blob-report/
+
 *.local
 .env
 .env.production
