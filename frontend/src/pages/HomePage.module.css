@@ -1,31 +1,50 @@
 .page {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-5);
   max-width: var(--prose-max);
   animation: rise 420ms var(--ease) both;
 }
 
 .page h1 {
   margin: 0;
-  letter-spacing: -0.03em;
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  color: var(--color-text);
 }
 
 .lede {
   margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.5;
   color: var(--color-text-muted);
+  font-weight: 450;
 }
 
 .trust {
   margin: 0;
-  padding-left: 1.25rem;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   color: var(--color-text-muted);
+  display: grid;
+  gap: var(--space-2);
+  list-style-type: square;
+}
+
+.trust li {
+  line-height: 1.5;
+  font-size: 0.9375rem;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
+  margin-top: var(--space-2);
 }
 
 .docs {
@@ -33,9 +52,13 @@
   min-height: var(--control-min);
   display: inline-flex;
   align-items: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
   transition: color var(--duration) var(--ease);
 }
 
 .docs:hover {
   color: var(--color-text);
+  text-decoration: underline;
 }

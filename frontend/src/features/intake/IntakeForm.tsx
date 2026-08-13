@@ -130,13 +130,29 @@ export function IntakeForm({
         </div>
       </form>
       {mutation.isPending ? (
-        <TaskRows
-          items={INTAKE_STAGES.map((stage) => ({
-            id: stage.id,
-            label: stage.label,
-            status: "running",
-          }))}
-        />
+        <div className={styles.aiLoaderBox}>
+          <div className={styles.aiLoaderHeader}>
+            <div className={styles.aiOrb}>
+              <div className={styles.aiOrbInner} />
+            </div>
+            <div>
+              <p className={styles.aiLoaderTitle}>AI Operator Analyzing Request...</p>
+              <p className={styles.aiLoaderSub}>
+                Extracting telemetry, querying KB fixtures, evaluating policy rules
+              </p>
+            </div>
+          </div>
+          <div className={styles.aiProgressBar}>
+            <div className={styles.aiProgressFill} />
+          </div>
+          <TaskRows
+            items={INTAKE_STAGES.map((stage) => ({
+              id: stage.id,
+              label: stage.label,
+              status: "running",
+            }))}
+          />
+        </div>
       ) : null}
       {mutation.isError ? (
         <Callout tone="danger" title="The API could not create this case">

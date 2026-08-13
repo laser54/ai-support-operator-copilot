@@ -21,9 +21,11 @@ const FILTERS: Array<{ id: "all" | TraceFilterCategory; label: string }> = [
 export function FilterTable<T extends FilterTableEvent>({
   events,
   renderEvent,
+  action,
 }: {
   events: T[];
   renderEvent?: (event: T) => ReactNode;
+  action?: ReactNode;
 }) {
   const [selected, setSelected] = useState<"all" | TraceFilterCategory>("all");
 
@@ -39,18 +41,21 @@ export function FilterTable<T extends FilterTableEvent>({
 
   return (
     <div>
-      <div className={styles.filters} role="toolbar" aria-label="Trace filters">
-        {FILTERS.map((filter) => (
-          <button
-            key={filter.id}
-            type="button"
-            className={styles.chip}
-            aria-pressed={selected === filter.id}
-            onClick={() => setSelected(filter.id)}
-          >
-            {filter.label} {counts[filter.id]}
-          </button>
-        ))}
+      <div className={styles.header}>
+        <div className={styles.filters} role="toolbar" aria-label="Trace filters">
+          {FILTERS.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              className={styles.chip}
+              aria-pressed={selected === filter.id}
+              onClick={() => setSelected(filter.id)}
+            >
+              {filter.label} {counts[filter.id]}
+            </button>
+          ))}
+        </div>
+        {action ? <div className={styles.action}>{action}</div> : null}
       </div>
       <ol className={styles.list}>
         {visible.map((event) => (

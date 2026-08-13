@@ -9,12 +9,12 @@
 .row {
   display: flex;
   width: 100%;
-  min-height: var(--control-min);
+  min-height: 2.75rem;
   align-items: center;
   gap: var(--space-3);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
   color: inherit;
   text-align: left;
@@ -22,34 +22,55 @@
   transition:
     border-color var(--duration) var(--ease),
     background-color var(--duration) var(--ease),
-    transform var(--duration) var(--ease);
+    transform var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
 }
 
 .row:hover {
-  border-color: color-mix(in srgb, var(--color-text) 22%, var(--color-border));
-  background: var(--color-surface-muted);
+  border-color: var(--color-border-hover);
+  background: var(--color-surface-elevated);
+  transform: translateX(2px);
 }
 
 .row[aria-current="step"] {
-  border-color: color-mix(in srgb, var(--color-review) 70%, var(--color-border));
+  border-color: var(--color-review);
+  background: color-mix(in srgb, var(--color-review) 8%, var(--color-surface));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--color-review) 15%, transparent);
+}
+
+.completedIcon {
+  color: var(--color-success);
+}
+
+.waitingIcon {
+  color: var(--color-text-muted);
+  opacity: 0.5;
 }
 
 .spin {
-  animation: spin 0.9s linear infinite;
+  animation: spin 0.8s linear infinite;
+  color: var(--color-review);
+  flex-shrink: 0;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .spin {
-    animation: none;
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
 .label {
   font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: -0.01em;
 }
 
 .status {
   margin-left: auto;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+  font-weight: 500;
 }

@@ -1,26 +1,29 @@
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
-    transform: none;
+    transform: translateY(0);
   }
 }
 
 @keyframes dialog-in {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.98);
+    transform: translateY(16px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: none;
+    transform: translateY(0) scale(1);
   }
 }
 
 @keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
   to {
     transform: rotate(360deg);
   }
@@ -29,12 +32,12 @@
 @keyframes pulse-dot {
   0%,
   100% {
-    opacity: 0.18;
+    opacity: 0.25;
     transform: scale(0.85);
   }
   50% {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1.05);
   }
 }
 
@@ -44,6 +47,15 @@
   }
   to {
     background-position: -100% 0;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 12px color-mix(in srgb, var(--color-review) 20%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 24px color-mix(in srgb, var(--color-review) 40%, transparent);
   }
 }
 

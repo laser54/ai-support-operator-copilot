@@ -1,33 +1,129 @@
 .bar {
   position: sticky;
-  bottom: 0;
-  z-index: 1;
-  padding-top: var(--space-3);
-  background: var(--color-canvas);
+  bottom: 1.25rem;
+  z-index: 50;
+  padding: var(--space-3) var(--space-4);
+  background: rgba(18, 20, 29, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid color-mix(in srgb, var(--color-review) 25%, var(--color-border));
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 20px color-mix(in srgb, var(--color-review) 10%, transparent);
+  transition: transform var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
 }
 
 .stack {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-3);
 }
 
 .dialogActions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-3);
-  margin-top: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.diffBox {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.diffHeader {
+  margin: 0;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--color-warning);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.diffLine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+  font-family: var(--font-mono);
+}
+
+.diffLabel {
+  color: var(--color-text-muted);
+}
+
+.diffOld {
+  color: var(--color-danger);
+  text-decoration: line-through;
+}
+
+.diffArrow {
+  color: var(--color-text-muted);
+}
+
+.diffNew {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.diffBlock {
+  display: grid;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+}
+
+.diffOldBlock {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface-muted));
+  border-left: 3px solid var(--color-danger);
+  color: var(--color-text-muted);
+}
+
+.diffNewBlock {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-surface-muted));
+  border-left: 3px solid var(--color-success);
+  color: var(--color-text);
+}
+
+.diffBadgeOld {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--color-danger);
+  font-weight: 700;
+  margin-right: 0.5rem;
+}
+
+.diffBadgeNew {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--color-success);
+  font-weight: 700;
+  margin-right: 0.5rem;
 }
 
 @media (min-width: 64rem) {
   .bar {
     position: static;
     background: transparent;
-    padding-top: 0;
+    backdrop-filter: none;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
   }
 }

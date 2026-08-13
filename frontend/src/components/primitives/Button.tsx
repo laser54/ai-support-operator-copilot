@@ -30,7 +30,7 @@ export function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
     >
-      {loading ? <LoaderCircle aria-hidden size={16} /> : null}
+      {loading ? <LoaderCircle aria-hidden size={16} className={styles.spin} /> : null}
       {children}
     </button>
   );

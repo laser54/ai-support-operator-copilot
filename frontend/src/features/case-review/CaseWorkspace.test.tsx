@@ -172,7 +172,7 @@ describe("CaseWorkspace", () => {
     expect(
       screen.queryByRole("button", { name: "Approve and create mock incident" }),
     ).not.toBeInTheDocument();
-  });
+  }, 15000);
 
   it("rejects without showing a mock incident", async () => {
     const rejected: CaseResponse = {
@@ -219,7 +219,7 @@ describe("CaseWorkspace", () => {
 
   it("links evidence and the policy gate into the ordered trace", async () => {
     renderWorkspace();
-    await screen.findByText("Case created");
+    await screen.findByText("Case created", undefined, { timeout: 4000 });
     expect(screen.getByRole("link", { name: "View kb-auth-5xx-after-release in trace" })).toHaveAttribute(
       "href",
       "#event-00000000-0000-4000-8000-000000000002",

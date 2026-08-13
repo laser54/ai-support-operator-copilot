@@ -1,10 +1,13 @@
 .field {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .label {
   font-weight: 600;
+  font-size: 0.8125rem;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
 }
 
 .control {
@@ -15,20 +18,43 @@
   border-radius: var(--radius-sm);
   background: var(--color-canvas);
   color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height);
+  transition:
+    border-color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
+}
+
+.control:hover:not(:disabled) {
+  border-color: var(--color-border-hover);
+}
+
+.control:focus {
+  outline: none;
+  border-color: var(--color-review);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-review) 22%, transparent);
 }
 
 .control:disabled {
   background: var(--color-surface-muted);
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .invalid {
   border-color: var(--color-danger);
 }
 
+.invalid:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 22%, transparent);
+}
+
 .hint,
 .error {
   margin: 0;
   font-size: var(--font-size-sm);
+  line-height: 1.4;
 }
 
 .hint {
@@ -37,6 +63,7 @@
 
 .error {
   color: var(--color-danger);
+  font-weight: 500;
 }
 
 .textarea {

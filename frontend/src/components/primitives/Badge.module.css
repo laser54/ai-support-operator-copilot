@@ -3,45 +3,55 @@
   align-items: center;
   gap: var(--space-1);
   min-height: 1.5rem;
-  padding: 0 var(--space-2);
+  padding: 0 0.65rem;
   border-radius: 999px;
   border: 1px solid var(--color-border);
   background: var(--color-surface-muted);
   color: var(--color-text);
   font-size: var(--font-size-sm);
   font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
 }
 
 .neutral {
   color: var(--color-text);
+  border-color: var(--color-border);
+  background: var(--color-surface-muted);
 }
 
 .primary {
   color: var(--color-primary);
-  border-color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-muted));
 }
 
 .evidence {
   color: var(--color-evidence);
-  border-color: var(--color-evidence);
+  border-color: color-mix(in srgb, var(--color-evidence) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-evidence) 12%, var(--color-surface-muted));
 }
 
 .review {
   color: var(--color-review);
-  border-color: var(--color-review);
+  border-color: color-mix(in srgb, var(--color-review) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-review) 12%, var(--color-surface-muted));
 }
 
 .success {
   color: var(--color-success);
-  border-color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface-muted));
 }
 
 .warning {
   color: var(--color-warning);
-  border-color: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning) 12%, var(--color-surface-muted));
 }
 
 .danger {
   color: var(--color-danger);
-  border-color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface-muted));
 }

@@ -233,14 +233,12 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
           Audit trail · {traceQuery.data?.events.length ?? 0} events
           {latestEvent ? ` · latest ${latestEvent.event_type}` : ""}
         </summary>
-        <Button variant="secondary" onClick={() => void traceQuery.refetch()}>
-          Refresh trace
-        </Button>
         <TraceTimeline
           events={traceQuery.data?.events}
           loading={traceQuery.isPending || (traceQuery.isFetching && !traceQuery.data)}
           error={traceQuery.error?.message}
           onRetry={() => void traceQuery.refetch()}
+          onRefresh={() => void traceQuery.refetch()}
         />
       </details>
     </div>

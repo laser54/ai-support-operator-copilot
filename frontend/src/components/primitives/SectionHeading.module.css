@@ -9,17 +9,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 0.4rem;
-  background: var(--color-surface-muted);
-  color: var(--color-text-muted);
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-review) 12%, var(--color-surface-muted));
+  color: var(--color-review);
+  border: 1px solid color-mix(in srgb, var(--color-review) 25%, transparent);
   flex-shrink: 0;
 }
 
 .title {
   margin: 0;
-  font-size: 0.8125rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
 }

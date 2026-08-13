@@ -170,6 +170,27 @@ export function ReviewPanel({
         {dirty ? (
           <Callout tone="warning" title="Unsaved local edits">
             <p>These values are not stored until you approve or reject.</p>
+            <div className={styles.diffBox}>
+              <p className={styles.diffHeader}>AI Suggestion vs Operator Edits</p>
+              {local.priority !== caseData.triage.priority ? (
+                <div className={styles.diffLine}>
+                  <span className={styles.diffLabel}>Priority:</span>
+                  <span className={styles.diffOld}>{caseData.triage.priority}</span>
+                  <span className={styles.diffArrow}>→</span>
+                  <span className={styles.diffNew}>{local.priority}</span>
+                </div>
+              ) : null}
+              {local.replyDraft !== caseData.resolution_brief.reply_draft ? (
+                <div className={styles.diffBlock}>
+                  <div className={styles.diffOldBlock}>
+                    <span className={styles.diffBadgeOld}>AI Draft:</span> {caseData.resolution_brief.reply_draft}
+                  </div>
+                  <div className={styles.diffNewBlock}>
+                    <span className={styles.diffBadgeNew}>Operator Edit:</span> {local.replyDraft}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <Button variant="secondary" onClick={reset}>
               Reset edits
             </Button>

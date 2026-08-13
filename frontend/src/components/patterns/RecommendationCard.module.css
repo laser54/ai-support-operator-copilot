@@ -3,17 +3,154 @@
   gap: var(--space-3);
 }
 
-.title,
-.preview,
-.meta {
-  margin: 0;
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.125rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.livePulse {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.pulseDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-success);
+  box-shadow: 0 0 8px var(--color-success);
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
+
+.confidenceRing {
+  position: relative;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ringSvg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ringBg {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 3.5;
+}
+
+.ringVal {
+  fill: none;
+  stroke: var(--color-review);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.6s var(--ease);
+}
+
+.ringText {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-review);
 }
 
 .preview {
+  margin: 0;
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
+  background: var(--color-surface-muted);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.metaGrid {
+  display: grid;
+  gap: var(--space-1);
 }
 
 .meta {
+  margin: 0;
   color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.telemetrySection {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.telemetryToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--space-1) 0;
+  transition: color var(--duration) var(--ease);
+}
+
+.telemetryToggle:hover {
+  color: var(--color-review);
+}
+
+.telemetryStream {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-review) 6%, var(--color-surface-muted));
+  border: 1px solid color-mix(in srgb, var(--color-review) 20%, transparent);
+  animation: rise 200ms var(--ease) both;
+}
+
+.telemetryItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.telemetryItem code {
+  font-family: var(--font-mono);
+  color: var(--color-evidence);
+}
+
+.telemetryIcon {
+  color: var(--color-review);
+  flex-shrink: 0;
 }

@@ -20,7 +20,7 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
 function StatusIcon({ status }: { status: TaskStatus }) {
   const props = { size: 16, "aria-hidden": true as const };
   if (status === "completed") {
-    return <CheckCircle2 {...props} />;
+    return <CheckCircle2 {...props} className={styles.completedIcon} />;
   }
   if (status === "running") {
     return <LoaderCircle {...props} className={styles.spin} />;
@@ -28,7 +28,7 @@ function StatusIcon({ status }: { status: TaskStatus }) {
   if (status === "failed") {
     return <CircleAlert {...props} />;
   }
-  return <Circle {...props} />;
+  return <Circle {...props} className={styles.waitingIcon} />;
 }
 
 export function TaskRows({

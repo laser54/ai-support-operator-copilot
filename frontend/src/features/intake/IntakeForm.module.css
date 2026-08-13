@@ -28,3 +28,100 @@
   margin: 0;
   color: var(--color-text-muted);
 }
+
+/* Beautiful UI AI Processing Loader */
+.aiLoaderBox {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-review) 5%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-review) 30%, var(--color-border));
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 20px color-mix(in srgb, var(--color-review) 12%, transparent);
+  margin-top: var(--space-4);
+  animation: rise 240ms var(--ease) both;
+}
+
+.aiLoaderHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.aiOrb {
+  position: relative;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  padding: 3px;
+  background: linear-gradient(135deg, var(--color-review), var(--color-evidence));
+  animation: orbSpin 1.8s linear infinite;
+  flex-shrink: 0;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--color-review) 50%, transparent);
+}
+
+.aiOrbInner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--color-canvas);
+  border: 2px dashed color-mix(in srgb, var(--color-review) 60%, transparent);
+  animation: orbReverse 2.4s linear infinite;
+}
+
+@keyframes orbSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbReverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.aiLoaderTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.aiLoaderSub {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.aiProgressBar {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.aiProgressFill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--color-review), var(--color-evidence), var(--color-review));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}

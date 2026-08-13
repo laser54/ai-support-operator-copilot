@@ -1,8 +1,22 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
 }
 
 .chip {
@@ -10,25 +24,31 @@
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  background: transparent;
+  background: var(--color-surface);
   color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
   cursor: pointer;
   transition:
     background-color var(--duration) var(--ease),
     color var(--duration) var(--ease),
-    border-color var(--duration) var(--ease);
+    border-color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
 }
 
 .chip:hover {
   color: var(--color-text);
-  border-color: color-mix(in srgb, var(--color-text) 24%, var(--color-border));
+  border-color: var(--color-border-hover);
+  background: var(--color-surface-muted);
 }
 
 .chip[aria-pressed="true"] {
   background: var(--color-primary);
   border-color: transparent;
   color: var(--color-primary-fg);
-  font-weight: 600;
+  font-weight: 650;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
 }
 
 .list {
@@ -36,13 +56,18 @@
   padding: 0;
   list-style: none;
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .item {
-  padding: var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
   animation: rise var(--duration) var(--ease) both;
+  transition: border-color var(--duration) var(--ease), transform var(--duration) var(--ease);
+}
+
+.item:hover {
+  border-color: var(--color-border-hover);
 }
