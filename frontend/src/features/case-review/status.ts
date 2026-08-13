@@ -14,8 +14,11 @@ export function statusLabel(status: CaseStatus): string {
   return "Received";
 }
 
-export function provenanceLabel(fallbackReason: string | null): string {
-  return fallbackReason ? "Offline deterministic" : "Provider-backed";
+export function provenanceLabel(caseData: CaseResponse): string {
+  if (caseData.fallback_reason) {
+    return "Offline fallback";
+  }
+  return caseData.model ? `AI · ${caseData.model}` : "AI connected";
 }
 
 export function workflowItems(caseData: CaseResponse): TaskRowItem[] {

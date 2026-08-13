@@ -63,6 +63,7 @@ export type CaseResponse = {
   resolution_brief: ResolutionBrief;
   provider: string;
   fallback_reason: string | null;
+  model: string | null;
 };
 
 export type CreateCaseRequest = {

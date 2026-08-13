@@ -5,8 +5,40 @@
       "source_id": "status-portal-auth-5xx",
       "title": "Portal authentication status",
       "excerpt": "Synthetic status signal: portal authentication 5xx rate has been elevated since 10:42 UTC after the scheduled update.",
-      "keywords": ["portal", "authentication", "5xx", "update"],
+      "keywords": ["portal", "500 error", "sign in"],
       "observed_at": "2026-08-12T10:52:00Z"
+    },
+    {
+      "source_type": "service_status",
+      "source_id": "status-vpn-gateway",
+      "title": "VPN gateway status",
+      "excerpt": "Synthetic status signal: VPN gateway handshake failures are elevated after the certificate rotation.",
+      "keywords": ["vpn", "certificate"],
+      "observed_at": "2026-08-12T11:02:00Z"
+    },
+    {
+      "source_type": "service_status",
+      "source_id": "status-billing-export",
+      "title": "Billing export status",
+      "excerpt": "Synthetic status signal: invoice PDF export success rate dropped after 11:00 UTC.",
+      "keywords": ["invoice", "pdf"],
+      "observed_at": "2026-08-12T11:07:00Z"
+    },
+    {
+      "source_type": "service_status",
+      "source_id": "status-smtp-queue",
+      "title": "Outbound email status",
+      "excerpt": "Synthetic status signal: SMTP queue depth is high and password-reset delivery is delayed.",
+      "keywords": ["outbound email", "password-reset"],
+      "observed_at": "2026-08-12T11:12:00Z"
+    },
+    {
+      "source_type": "service_status",
+      "source_id": "status-idp-sso",
+      "title": "SSO IdP status",
+      "excerpt": "Synthetic status signal: Okta MFA challenge success rate dropped; users report SSO loops.",
+      "keywords": ["sso", "mfa", "okta"],
+      "observed_at": "2026-08-12T11:17:00Z"
     }
   ]
 }

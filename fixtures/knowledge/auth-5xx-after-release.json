@@ -5,8 +5,40 @@
       "source_id": "kb-auth-5xx-after-release",
       "title": "Authentication 5xx after a release",
       "excerpt": "Synthetic runbook: if login begins returning HTTP 500 immediately after a release, declare an access incident, collect the release version and affected environment, then route the incident to Engineering.",
-      "keywords": ["login", "http 500", "release", "authentication"],
+      "keywords": ["sign in", "500 error", "portal", "http 500"],
       "observed_at": "2026-08-12T10:45:00Z"
+    },
+    {
+      "source_type": "knowledge",
+      "source_id": "kb-vpn-certificate-rotation",
+      "title": "VPN failure after certificate rotation",
+      "excerpt": "Synthetic runbook: if remote VPN tunnels fail immediately after a certificate rotation, collect the gateway name and certificate expiry, then route to Network Engineering.",
+      "keywords": ["vpn", "certificate"],
+      "observed_at": "2026-08-12T11:00:00Z"
+    },
+    {
+      "source_type": "knowledge",
+      "source_id": "kb-invoice-pdf-timeout",
+      "title": "Invoice PDF export timeout",
+      "excerpt": "Synthetic runbook: if invoice PDF export jobs time out, capture the job ID and tenant, then route to Billing Platform.",
+      "keywords": ["invoice", "pdf"],
+      "observed_at": "2026-08-12T11:05:00Z"
+    },
+    {
+      "source_type": "knowledge",
+      "source_id": "kb-outbound-email-delay",
+      "title": "Outbound email delay",
+      "excerpt": "Synthetic runbook: if outbound email is delayed, inspect the SMTP queue depth and password-reset templates, then route to Messaging.",
+      "keywords": ["outbound email", "password-reset"],
+      "observed_at": "2026-08-12T11:10:00Z"
+    },
+    {
+      "source_type": "knowledge",
+      "source_id": "kb-sso-mfa-loop",
+      "title": "SSO MFA loop",
+      "excerpt": "Synthetic runbook: if users loop on SSO MFA after an IdP change, collect the Okta policy name and affected application, then route to Identity.",
+      "keywords": ["sso", "mfa", "okta"],
+      "observed_at": "2026-08-12T11:15:00Z"
     }
   ]
 }

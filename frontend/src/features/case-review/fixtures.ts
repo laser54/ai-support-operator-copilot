@@ -20,6 +20,7 @@ export const sampleCase: CaseResponse = {
   status: "awaiting_human_review",
   provider: "deterministic_fallback",
   fallback_reason: "provider_not_configured",
+  model: null,
   triage: {
     category: "incident",
     priority: "P1",

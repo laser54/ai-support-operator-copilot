@@ -7,17 +7,10 @@ import { App } from "../../app/App";
 import { ApprovalCard } from "../patterns/ApprovalCard";
 import { ContextCard } from "../patterns/ContextCard";
 import { FilterTable } from "../patterns/FilterTable";
-import { LoadingState } from "../patterns/LoadingState";
 import { RecommendationCard } from "../patterns/RecommendationCard";
 import { TaskRows } from "../patterns/TaskRows";
 
 describe("workflow patterns", () => {
-  it("announces loading with a section skeleton and text status", () => {
-    render(<LoadingState label="Analyzing request" />);
-    expect(screen.getByRole("status")).toHaveTextContent("Analyzing request");
-    expect(screen.getByTestId("loading-skeleton")).toBeInTheDocument();
-  });
-
   it("shows workflow row status as text plus an accessible name", () => {
     render(
       <TaskRows
@@ -121,5 +114,10 @@ describe("application shell", () => {
     expect(
       screen.getByRole("heading", { name: "Component gallery" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "New case" })).toHaveAttribute("href", "/cases/new");
+    expect(screen.getByRole("link", { name: "Component gallery" })).toHaveAttribute(
+      "href",
+      "/dev/components",
+    );
   });
 });

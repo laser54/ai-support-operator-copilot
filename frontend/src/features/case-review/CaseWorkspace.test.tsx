@@ -61,7 +61,7 @@ describe("CaseWorkspace", () => {
     renderWorkspace();
     expect(await screen.findByText(/cannot sign in to the portal/i)).toBeInTheDocument();
     expect(screen.getByText("Waiting for review")).toBeInTheDocument();
-    expect(screen.getByText("Offline deterministic")).toBeInTheDocument();
+    expect(screen.getAllByText("Offline fallback").length).toBeGreaterThan(0);
     expect(screen.getByText(/86% confidence/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Reported facts" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "System inferences" })).toBeInTheDocument();
@@ -71,6 +71,18 @@ describe("CaseWorkspace", () => {
     expect(screen.getByText("status-portal-auth-5xx")).toBeInTheDocument();
     expect(screen.getByText(/We have recorded the access incident/)).toBeInTheDocument();
     expect(screen.getByText(/cannot run until you approve/i)).toBeInTheDocument();
+  });
+
+  it("shows the live model name when the provider is connected", async () => {
+    renderWorkspace({
+      loadCase: vi.fn().mockResolvedValue({
+        ...sampleCase,
+        provider: "openai_compatible",
+        fallback_reason: null,
+        model: "deepseek-v4-flash",
+      }),
+    });
+    expect(await screen.findAllByText("AI · deepseek-v4-flash")).not.toHaveLength(0);
   });
 
   it("renders completed and rejected states distinctly", async () => {

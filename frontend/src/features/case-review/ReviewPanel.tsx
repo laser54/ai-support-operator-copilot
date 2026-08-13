@@ -1,3 +1,4 @@
+import { Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { CaseResponse, Priority, ReviewRequest } from "../../api/types";
@@ -6,6 +7,7 @@ import { Button } from "../../components/primitives/Button";
 import { Callout } from "../../components/primitives/Callout";
 import { Card } from "../../components/primitives/Card";
 import { Dialog } from "../../components/primitives/Dialog";
+import { SectionHeading } from "../../components/primitives/SectionHeading";
 import { TextArea } from "../../components/primitives/TextArea";
 import { TextField } from "../../components/primitives/TextField";
 import { DEFAULT_REVIEW_ACTOR } from "./constants";
@@ -94,8 +96,10 @@ export function ReviewPanel({
 
   return (
     <div className={styles.stack}>
-      <Card>
-        <h2>Human edits</h2>
+      <Card tone="human">
+        <SectionHeading icon={Shield} mark="Human gate">
+          Human edits
+        </SectionHeading>
         <TextField
           label="Reviewer"
           value={local.actor}

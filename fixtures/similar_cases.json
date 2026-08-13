@@ -5,8 +5,40 @@
       "source_id": "inc-104",
       "title": "Portal login failures after version 4.8.0",
       "excerpt": "Synthetic incident INC-104: elevated portal login HTTP 500 responses after deployment were owned by Engineering and mitigated by rolling back the authentication adapter.",
-      "keywords": ["portal", "login", "500", "deployment"],
+      "keywords": ["portal", "500 error", "sign in"],
       "observed_at": "2026-08-12T10:50:00Z"
+    },
+    {
+      "source_type": "similar_case",
+      "source_id": "inc-218",
+      "title": "VPN outage after certificate swap",
+      "excerpt": "Synthetic incident INC-218: remote VPN users failed handshake after a certificate rotation; Network Engineering rolled back the gateway cert.",
+      "keywords": ["vpn", "certificate"],
+      "observed_at": "2026-08-12T11:01:00Z"
+    },
+    {
+      "source_type": "similar_case",
+      "source_id": "inc-311",
+      "title": "Billing PDF jobs stuck",
+      "excerpt": "Synthetic incident INC-311: invoice PDF exports timed out after a renderer upgrade; Billing Platform raised worker memory.",
+      "keywords": ["invoice", "pdf"],
+      "observed_at": "2026-08-12T11:06:00Z"
+    },
+    {
+      "source_type": "similar_case",
+      "source_id": "inc-402",
+      "title": "Password-reset mail backlog",
+      "excerpt": "Synthetic incident INC-402: outbound email delayed two hours; Messaging drained the SMTP queue after a rate-limit misconfig.",
+      "keywords": ["outbound email", "password-reset"],
+      "observed_at": "2026-08-12T11:11:00Z"
+    },
+    {
+      "source_type": "similar_case",
+      "source_id": "inc-155",
+      "title": "Okta MFA loop on SSO",
+      "excerpt": "Synthetic incident INC-155: users looped on SSO MFA after an Okta policy publish; Identity reverted the factor rule.",
+      "keywords": ["sso", "mfa", "okta"],
+      "observed_at": "2026-08-12T11:16:00Z"
     }
   ]
 }

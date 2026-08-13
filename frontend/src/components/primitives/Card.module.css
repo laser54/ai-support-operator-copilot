@@ -1,8 +1,10 @@
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
   transition:
     border-color var(--duration) var(--ease),
     transform var(--duration) var(--ease),
@@ -25,4 +27,25 @@
   box-shadow:
     var(--shadow-decision),
     0 0 40px color-mix(in srgb, var(--color-review) 18%, transparent);
+}
+
+.request {
+  border-left: 3px solid var(--color-info);
+}
+
+.facts {
+  border-left: 3px solid #71717a;
+}
+
+.ai {
+  border-left: 3px solid var(--color-review);
+  background: color-mix(in srgb, var(--color-review) 7%, var(--color-surface));
+}
+
+.evidence {
+  border-left: 3px solid var(--color-evidence);
+}
+
+.human {
+  border-left: 3px solid var(--color-primary);
 }

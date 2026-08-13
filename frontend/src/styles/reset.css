@@ -19,6 +19,15 @@ body {
   line-height: var(--line-height);
 }
 
+h1 {
+  font-size: 1.375rem;
+  letter-spacing: -0.03em;
+}
+
+h2 {
+  font-size: 0.8125rem;
+}
+
 button,
 input,
 textarea {

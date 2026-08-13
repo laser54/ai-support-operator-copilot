@@ -24,6 +24,7 @@ class WorkflowState(TypedDict, total=False):
     resolution_brief: dict[str, object]
     provider: str
     fallback_reason: str | None
+    model: str | None
 
 
 class CaseWorkflow:
@@ -66,8 +67,8 @@ class CaseWorkflow:
             ("find_similar_cases", {"summary": request_text}, find_similar_cases(request_text)),
             (
                 "check_service_status",
-                {"service": "portal authentication"},
-                check_service_status("portal authentication"),
+                {"service": request_text},
+                check_service_status(request_text),
             ),
         ]
         evidence: list[Evidence] = []
@@ -98,6 +99,7 @@ class CaseWorkflow:
             "resolution_brief": result.brief.model_dump(mode="json"),
             "provider": result.provider,
             "fallback_reason": result.fallback_reason,
+            "model": result.model,
         }
 
     def _policy_gate(self, state: WorkflowState) -> WorkflowState:

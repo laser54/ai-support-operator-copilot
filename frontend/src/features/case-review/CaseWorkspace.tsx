@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, BookOpen, MessageSquareQuote, PenLine, Sparkles, User } from "lucide-react";
 import { Link, useParams } from "react-router";
 
 import { ApiError } from "../../api/client";
@@ -6,12 +7,12 @@ import { queryKeys } from "../../api/queryKeys";
 import { getApiBaseUrl, getCasesApi } from "../../api/runtime";
 import type { CaseResponse, ReviewRequest, TraceResponse } from "../../api/types";
 import { ContextCard } from "../../components/patterns/ContextCard";
-import { LoadingState } from "../../components/patterns/LoadingState";
 import { TaskRows } from "../../components/patterns/TaskRows";
 import { Badge } from "../../components/primitives/Badge";
 import { Button } from "../../components/primitives/Button";
 import { Callout } from "../../components/primitives/Callout";
 import { Card } from "../../components/primitives/Card";
+import { SectionHeading } from "../../components/primitives/SectionHeading";
 import { TraceTimeline } from "../trace/TraceTimeline";
 import { eventAnchorId, firstEventOfType, toolEventForSource } from "../trace/labels";
 import { ReviewPanel } from "./ReviewPanel";
@@ -55,7 +56,7 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
   });
 
   if (caseQuery.isPending) {
-    return <LoadingState label="Loading case" />;
+    return <p role="status">Loading case</p>;
   }
 
   if (caseQuery.error instanceof ApiError && caseQuery.error.status === 404) {
@@ -100,7 +101,10 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
             </Badge>
             <Badge>{caseData.triage.priority}</Badge>
             <Badge tone="warning">{caseData.triage.risk} risk</Badge>
-            <Badge tone="primary">{provenanceLabel(caseData.fallback_reason)}</Badge>
+            <p className={styles.aiChip} data-mode={caseData.fallback_reason ? "offline" : "live"}>
+              <Sparkles size={13} strokeWidth={2} aria-hidden="true" />
+              {provenanceLabel(caseData)}
+            </p>
           </div>
           <Button
             variant="secondary"
@@ -124,8 +128,8 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
           <TaskRows items={workflowItems(caseData)} onSelect={scrollToSection} />
         </nav>
         <div className={styles.stack}>
-          <Card as="section" id="request" tabIndex={-1}>
-            <h2>Request</h2>
+          <Card as="section" id="request" tabIndex={-1} tone="request">
+            <SectionHeading icon={MessageSquareQuote}>Request</SectionHeading>
             <blockquote className={styles.quote}>{caseData.request_text}</blockquote>
             <p>
               {caseData.triage.category} · {caseData.triage.priority} · {caseData.triage.risk} risk ·{" "}
@@ -134,8 +138,8 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
           </Card>
 
           <section className={styles.stack} id="review" tabIndex={-1}>
-            <Card>
-              <h2>Reported facts</h2>
+            <Card tone="facts">
+              <SectionHeading icon={User}>Reported facts</SectionHeading>
               {caseData.resolution_brief.requester_facts.length > 0 ? (
                 <ul className={styles.list}>
                   {caseData.resolution_brief.requester_facts.map((fact) => (
@@ -146,9 +150,10 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
                 <p>No requester facts were stored for this case.</p>
               )}
             </Card>
-            <Card>
-              <h2>System inferences</h2>
-              <Badge>AI inference</Badge>
+            <Card tone="ai">
+              <SectionHeading icon={Sparkles} mark={provenanceLabel(caseData)}>
+                System inferences
+              </SectionHeading>
               {caseData.resolution_brief.inferences.length > 0 ? (
                 <ul className={styles.list}>
                   {caseData.resolution_brief.inferences.map((item) => (
@@ -159,7 +164,7 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
                 <p>No system inferences were stored for this case.</p>
               )}
             </Card>
-            <Callout tone="warning" title="Still needed">
+            <Callout tone="warning" title="Still needed" icon={AlertCircle}>
               {caseData.resolution_brief.missing_information.length > 0 ? (
                 <ul className={styles.list}>
                   {caseData.resolution_brief.missing_information.map((item) => (
@@ -173,7 +178,7 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
           </section>
 
           <section className={styles.stack} id="evidence" tabIndex={-1}>
-            <h2>Evidence</h2>
+            <SectionHeading icon={BookOpen}>Evidence</SectionHeading>
             {caseData.evidence.length === 0 ? (
               <p>No fixture evidence was stored for this case.</p>
             ) : null}
@@ -200,8 +205,10 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
             })}
           </section>
 
-          <Card as="section" id="brief" tabIndex={-1}>
-            <h2>Resolution brief</h2>
+          <Card as="section" id="brief" tabIndex={-1} tone="ai">
+            <SectionHeading icon={PenLine} mark="AI draft">
+              Resolution brief
+            </SectionHeading>
             <p>Edit the customer-facing reply in Human review before you decide.</p>
           </Card>
 

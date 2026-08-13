@@ -160,7 +160,7 @@ The page contains one focused input card:
 
 - clear label “Describe the support issue”;
 - multiline text area with remaining-character guidance;
-- “Use demo request” control that inserts the canonical login HTTP 500 text;
+- named demo scenario chips plus “Use demo request” (random among them);
 - submit button labelled “Analyze request”;
 - adjacent privacy note: synthetic/local data only for the demo;
 - short explanation of what happens next and that no action will execute.

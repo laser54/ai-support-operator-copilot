@@ -20,23 +20,19 @@ def find_similar_cases(summary: str) -> list[Evidence]:
 
 
 def check_service_status(service: str | None = None) -> list[Evidence]:
-    """Return synthetic service status evidence for the requested service."""
+    """Return synthetic service status evidence matching the request text."""
 
-    return _search("service_status.json", service or "", "check_service_status", match_all=True)
+    return _search("service_status.json", service or "", "check_service_status")
 
 
-def _search(
-    catalogue_name: str, query: str, tool_name: str, *, match_all: bool = False
-) -> list[Evidence]:
-    terms = {term.lower() for term in query.split() if term}
-    entries = load_catalogue(catalogue_name).entries
-    matches = [entry for entry in entries if match_all or _matches(entry, terms)]
+def _search(catalogue_name: str, query: str, tool_name: str) -> list[Evidence]:
+    matches = [entry for entry in load_catalogue(catalogue_name).entries if _matches(entry, query)]
     return [_to_evidence(entry, tool_name) for entry in matches]
 
 
-def _matches(entry: FixtureEntry, terms: set[str]) -> bool:
-    searchable = " ".join([entry.title, entry.excerpt, *entry.keywords]).lower()
-    return not terms or any(term in searchable for term in terms)
+def _matches(entry: FixtureEntry, query: str) -> bool:
+    haystack = query.lower()
+    return any(keyword.lower() in haystack for keyword in entry.keywords)
 
 
 def _to_evidence(entry: FixtureEntry, tool_name: str) -> Evidence:

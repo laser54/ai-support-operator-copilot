@@ -50,16 +50,34 @@ def test_missing_credentials_uses_deterministic_login_500_fallback() -> None:
     assert result.provider == "deterministic_fallback"
     assert result.fallback_reason == "provider_not_configured"
     assert result.triage.priority is Priority.P1
+    assert result.brief.requester_facts == ["Requester reports login HTTP 500 after an update."]
     assert all(action.state is ActionState.PROPOSED for action in result.brief.proposed_actions)
     assert all(not hasattr(action, "execute") for action in result.brief.proposed_actions)
 
 
-def test_valid_configured_client_returns_validated_typed_output() -> None:
-    result = TriageAndBriefService(Settings(), client=ValidClient()).generate(
-        "Portal login HTTP 500", []
+def test_fallback_for_vpn_request_does_not_reuse_the_login_story() -> None:
+    result = TriageAndBriefService(
+        Settings(llm_api_key=None, llm_base_url=None, llm_model=None)
+    ).generate(
+        "Remote VPN users cannot connect after last night's certificate rotation.",
+        [],
     )
 
+    assert result.provider == "deterministic_fallback"
+    assert result.triage.category == "incident/network"
+    assert "VPN" in result.brief.reply_draft
+    assert "login HTTP 500" not in result.brief.requester_facts[0]
+    assert "VPN" in result.brief.proposed_actions[0].payload_preview
+
+
+def test_valid_configured_client_returns_validated_typed_output() -> None:
+    result = TriageAndBriefService(
+        Settings(llm_api_key="k", llm_base_url="http://llm.test", llm_model="deepseek-v4-flash"),
+        client=ValidClient(),
+    ).generate("Portal login HTTP 500", [])
+
     assert result.provider == "openai_compatible"
+    assert result.model == "deepseek-v4-flash"
     assert result.triage.priority is Priority.P1
     assert result.brief.reply_draft == "We are investigating the login failure."
 

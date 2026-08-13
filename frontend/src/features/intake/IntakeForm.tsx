@@ -5,13 +5,12 @@ import { useNavigate } from "react-router";
 
 import { getApiBaseUrl, getCasesApi } from "../../api/runtime";
 import type { CaseResponse } from "../../api/types";
-import { LoadingState } from "../../components/patterns/LoadingState";
 import { TaskRows } from "../../components/patterns/TaskRows";
 import { Button } from "../../components/primitives/Button";
 import { Callout } from "../../components/primitives/Callout";
 import { Card } from "../../components/primitives/Card";
 import { TextArea } from "../../components/primitives/TextArea";
-import { DEMO_REQUEST, REQUEST_MAX_LENGTH } from "./constants";
+import { DEMO_SCENARIOS, REQUEST_MAX_LENGTH } from "./constants";
 import styles from "./IntakeForm.module.css";
 
 type IntakeValues = {
@@ -25,6 +24,11 @@ const INTAKE_STAGES = [
   { id: "review", label: "Human review" },
   { id: "outcome", label: "Outcome" },
 ] as const;
+
+function randomScenarioText(): string {
+  const index = Math.floor(Math.random() * DEMO_SCENARIOS.length);
+  return DEMO_SCENARIOS[index].text;
+}
 
 export function IntakeForm({
   createCase,
@@ -74,6 +78,10 @@ export function IntakeForm({
     },
   });
 
+  function insertDemo(text: string) {
+    setValue("request_text", text, { shouldValidate: true });
+  }
+
   return (
     <Card className={styles.form}>
       <form
@@ -91,33 +99,44 @@ export function IntakeForm({
           disabled={mutation.isPending}
         />
         <p className={styles.note}>
-          Synthetic and local data only for this demo. The API will gather fixture evidence and
-          pause at the human gate. No incident is created until you approve it.
+          Evidence is synthetic fixtures, not live systems. You can paste any request; the five
+          demos below are just starting points. The API still pauses at the human gate.
         </p>
-        <div className={styles.actions}>
+        <div className={styles.scenarios} role="group" aria-label="Demo scenarios">
+          {DEMO_SCENARIOS.map((scenario) => (
+            <Button
+              key={scenario.id}
+              variant="secondary"
+              className={styles.scenario}
+              disabled={mutation.isPending}
+              onClick={() => insertDemo(scenario.text)}
+            >
+              {scenario.title}
+            </Button>
+          ))}
           <Button
             variant="secondary"
+            className={styles.scenario}
             disabled={mutation.isPending}
-            onClick={() => setValue("request_text", DEMO_REQUEST, { shouldValidate: true })}
+            onClick={() => insertDemo(randomScenarioText())}
           >
             Use demo request
           </Button>
+        </div>
+        <div className={styles.actions}>
           <Button type="submit" loading={mutation.isPending}>
             Analyze request
           </Button>
         </div>
       </form>
       {mutation.isPending ? (
-        <>
-          <LoadingState label="The API is running intake through the human review gate." />
-          <TaskRows
-            items={INTAKE_STAGES.map((stage) => ({
-              id: stage.id,
-              label: stage.label,
-              status: "running",
-            }))}
-          />
-        </>
+        <TaskRows
+          items={INTAKE_STAGES.map((stage) => ({
+            id: stage.id,
+            label: stage.label,
+            status: "running",
+          }))}
+        />
       ) : null}
       {mutation.isError ? (
         <Callout tone="danger" title="The API could not create this case">

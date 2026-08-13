@@ -3,7 +3,6 @@ import { useState } from "react";
 import { ApprovalCard } from "../components/patterns/ApprovalCard";
 import { ContextCard } from "../components/patterns/ContextCard";
 import { FilterTable } from "../components/patterns/FilterTable";
-import { LoadingState } from "../components/patterns/LoadingState";
 import { RecommendationCard } from "../components/patterns/RecommendationCard";
 import { TaskRows } from "../components/patterns/TaskRows";
 import { Badge } from "../components/primitives/Badge";
@@ -50,7 +49,6 @@ export function DevComponentsPage() {
         Evidence in this demo is fixture-backed and not a production status feed.
       </Callout>
 
-      <LoadingState label="Analyzing request" />
       <TaskRows
         items={[
           { id: "request", label: "Request", status: "completed" },

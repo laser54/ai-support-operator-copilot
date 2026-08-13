@@ -17,8 +17,13 @@ services:
 
   api:
     build: .
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql+psycopg://copilot:copilot@db:5432/copilot
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://opencode.ai/zen/go/v1}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-v4-flash}
     depends_on:
       db:
         condition: service_healthy

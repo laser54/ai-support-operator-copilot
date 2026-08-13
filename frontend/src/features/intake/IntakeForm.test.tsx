@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../api/client";
 import type { CaseResponse } from "../../api/types";
-import { DEMO_REQUEST } from "./constants";
+import { DEMO_REQUEST, DEMO_SCENARIOS } from "./constants";
 import { IntakeForm } from "./IntakeForm";
 
 function renderIntake(createCase: (text: string) => Promise<CaseResponse>) {
@@ -26,13 +26,23 @@ function renderIntake(createCase: (text: string) => Promise<CaseResponse>) {
 }
 
 describe("IntakeForm", () => {
-  it("inserts the canonical demo request", async () => {
+  it("inserts a named demo scenario", async () => {
     const user = userEvent.setup();
     renderIntake(vi.fn());
-    await user.click(screen.getByRole("button", { name: "Use demo request" }));
+    await user.click(screen.getByRole("button", { name: "Portal login 500" }));
     expect(screen.getByRole("textbox", { name: "Describe the support issue" })).toHaveValue(
       DEMO_REQUEST,
     );
+  });
+
+  it("inserts one of the demo scenarios from Use demo request", async () => {
+    const user = userEvent.setup();
+    renderIntake(vi.fn());
+    await user.click(screen.getByRole("button", { name: "Use demo request" }));
+    const value = (
+      screen.getByRole("textbox", { name: "Describe the support issue" }) as HTMLTextAreaElement
+    ).value;
+    expect(DEMO_SCENARIOS.some((scenario) => scenario.text === value)).toBe(true);
   });
 
   it("announces invalid empty input and focuses the field", async () => {
@@ -49,7 +59,7 @@ describe("IntakeForm", () => {
     const user = userEvent.setup();
     const createCase = vi.fn().mockResolvedValue({ case_id: "case-123" });
     renderIntake(createCase);
-    await user.click(screen.getByRole("button", { name: "Use demo request" }));
+    await user.click(screen.getByRole("button", { name: "Portal login 500" }));
     await user.click(screen.getByRole("button", { name: "Analyze request" }));
     expect(createCase).toHaveBeenCalledWith(DEMO_REQUEST);
     expect(await screen.findByText("Opened workspace")).toBeInTheDocument();
@@ -62,7 +72,7 @@ describe("IntakeForm", () => {
       .mockRejectedValueOnce(new ApiError(503, "http_error", "API unavailable"))
       .mockResolvedValueOnce({ case_id: "case-123" });
     renderIntake(createCase);
-    await user.click(screen.getByRole("button", { name: "Use demo request" }));
+    await user.click(screen.getByRole("button", { name: "Portal login 500" }));
     await user.click(screen.getByRole("button", { name: "Analyze request" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/API unavailable/);
     expect(screen.getByText(/http:\/\/127\.0\.0\.1:8000/)).toBeInTheDocument();
@@ -84,10 +94,10 @@ describe("IntakeForm", () => {
         }),
     );
     renderIntake(createCase);
-    await user.click(screen.getByRole("button", { name: "Use demo request" }));
+    await user.click(screen.getByRole("button", { name: "Portal login 500" }));
     await user.click(screen.getByRole("button", { name: "Analyze request" }));
-    expect(await screen.findByRole("status")).toHaveTextContent(/intake through the human review gate/i);
     expect(screen.getByRole("button", { name: "Analyze request" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Analyze request" })).toHaveAttribute("aria-busy", "true");
     await user.click(screen.getByRole("button", { name: "Analyze request" }));
     expect(createCase).toHaveBeenCalledTimes(1);
     resolveCreate({ case_id: "case-123" } as CaseResponse);

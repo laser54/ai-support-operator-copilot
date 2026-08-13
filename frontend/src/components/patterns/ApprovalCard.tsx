@@ -1,5 +1,8 @@
+import { Shield } from "lucide-react";
+
 import { Button } from "../primitives/Button";
 import { Card } from "../primitives/Card";
+import { SectionHeading } from "../primitives/SectionHeading";
 import styles from "./ApprovalCard.module.css";
 
 export function ApprovalCard({
@@ -16,8 +19,8 @@ export function ApprovalCard({
   onReject: () => void;
 }) {
   return (
-    <Card emphasized className={styles.card}>
-      <h2 className={styles.title}>{title}</h2>
+    <Card emphasized className={styles.card} tone="human">
+      <SectionHeading icon={Shield}>{title}</SectionHeading>
       <p className={styles.summary}>{summary}</p>
       <p className={styles.policy}>This action cannot run until you approve it.</p>
       <div className={styles.actions}>
