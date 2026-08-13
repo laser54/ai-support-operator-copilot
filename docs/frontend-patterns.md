@@ -10,8 +10,9 @@ primary actions, and `--duration` that collapses under `prefers-reduced-motion`.
 
 ## Loading
 
-Pending intake uses the primary button `aria-busy` state and Task Rows. The
-pixel-grid loading pattern was removed.
+Pending intake uses the primary button `aria-busy` state and Task Rows. Case
+workspace pending uses a short `role="status"` line. The pixel-grid Loading
+State pattern is not used.
 
 ## Task Rows
 

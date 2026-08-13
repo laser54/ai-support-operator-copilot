@@ -8,14 +8,20 @@ The demo proves a controlled agentic workflow, not an autonomous chatbot. A view
 
 The fixture-backed evidence sources for the canonical login HTTP 500 after an
 update scenario are deterministic: `kb-auth-5xx-after-release`, `inc-104`, and
-`status-portal-auth-5xx`. The workflow persists each corresponding tool call as
-an ordered audit event with safe summaries.
+`status-portal-auth-5xx`. Additional catalogues cover VPN certificate, invoice
+PDF timeout, outbound email delay, and SSO MFA loop. The workflow persists each
+matching tool call as an ordered audit event with safe summaries.
+
+The local reviewer UI at `http://127.0.0.1:5173` can run the same path: pick a
+demo chip, analyze, edit, approve or reject, and open the audit trail.
 
 ## Prerequisites
 
 Run `docker compose up --build`, wait for the API health check, and open
-`http://127.0.0.1:8000/docs`. No LLM credentials are needed for this demo;
-the deterministic fallback supplies triage and the draft response.
+`http://127.0.0.1:8000/docs`. LLM credentials are optional. Without them the
+deterministic fallback still follows the request. With `LLM_*` set in `.env`
+and the API container recreated, case responses should show
+`provider=openai_compatible` and `model` (for example `deepseek-v4-flash`).
 
 ## Script
 
@@ -89,6 +95,8 @@ The test suite must cover each proof point in this script. A manually observed A
 ## Honest boundaries
 
 - The first version uses synthetic fixtures and a mock ticket executor.
+- Five demo requests exist in the reviewer intake UI; the scripted API path
+  above still uses the canonical login HTTP 500 request.
 - It does not prove real support quality, time savings or production readiness.
 - The trace is application audit evidence, not a claim of complete LLM observability coverage.
 - A production connector would need authentication, authorization, idempotency and reconciliation handling before it can create external tickets.

@@ -13,8 +13,8 @@ unconstrained chatbot.
 - This is a new standalone private repository, not a fork of
   `support_operator_panel` or a rewrite of `assist-craft-qna`.
 - The API MVP uses FastAPI documentation, JSON, and tests as its primary
-  demonstration layer. A focused reviewer frontend is planned only after the
-  API workflow is complete.
+  demonstration layer. A focused reviewer frontend exists in `frontend/`
+  (phase 9.1–9.7). Static Vercel Hobby deploy is still planned (9.8).
 - Use fixture and mock data only. Do not use real customer data, tokens, CRM, or
   ticketing integrations.
 - Use one explicit LangGraph workflow rather than a multi-agent supervisor
@@ -71,8 +71,10 @@ app/
   api/             HTTP routes and schemas
   domain/          Case, evidence, action and audit models
   graph/           LangGraph state, nodes and transitions
+  llm/             OpenAI-compatible boundary and offline fallback
+  persistence/     SQLAlchemy models, repositories, database session
   tools/           Fixture-backed read-only and mock write tools
-  repositories/    Persistence interfaces and implementations
+frontend/          Reviewer SPA (Vite/React)
 fixtures/
   knowledge/
   similar_cases.json
@@ -87,9 +89,9 @@ docs/
 - No auto-send, auto-ticket creation or other external side effects.
 - No web scraping or production integrations in the MVP.
 - No “agent memory” feature until persisted case/audit state works.
-- No premature vector DB or auth. A thin reviewer frontend is deferred until the
-  API MVP is complete and will use Vercel Hobby for personal, non-commercial
-  frontend hosting only; backend, database, secrets and policy enforcement stay
+- No premature vector DB or auth. The thin reviewer frontend is implemented
+  for the local demo; Vercel Hobby remains the planned personal/non-commercial
+  frontend host. Backend, database, secrets and policy enforcement stay
   outside the browser.
 
 ## Verification target
@@ -98,29 +100,24 @@ A reviewer should be able to run tests and follow one documented demo from reque
 
 ## Current implementation snapshot
 
-Phases 2 and 3 are complete: PostgreSQL 16 is available through `compose.yaml`,
-and the application has a SQLAlchemy 2 `CaseRepository` with an Alembic
-baseline migration for the minimal `cases` table. Strict Pydantic workflow
-contracts and deterministic synthetic fixture catalogues now cover the login
-HTTP 500 after update scenario. Fixture-backed read-only tools return traceable
-evidence and the PostgreSQL audit trail persists safe, ordered tool-call events.
-Triage and brief generation now have a validated OpenAI-compatible boundary and
-deterministic offline fallback; neither provider output nor fallback can
-authorize or execute an action. The normal test suite skips the PostgreSQL
-integration test unless `TEST_DATABASE_URL` identifies a dedicated disposable
-database. The explicit LangGraph intake workflow is now available through
-`POST /cases` and `GET /cases/{case_id}`; it persists a checkpoint, gathers
-three fixture evidence sources, and stops at `awaiting_human_review` with no
-execution edge. Typed review edits, approval/rejection, exactly-once mock
-execution, and the ordered trace endpoint are now implemented. The next
-roadmap phase is an optional deferred reviewer frontend. The API MVP has CI,
-Docker health checks, an executable local demo, and a deterministic no-key
-fallback; it is ready to run locally without LLM credentials.
+Phases 1–8 are complete. The API MVP runs locally with Docker Compose:
+PostgreSQL 16, Alembic migrations, LangGraph intake through the human gate,
+fixture-backed tools, mock incident execution, and an ordered audit trace.
+Triage uses an OpenAI-compatible JSON boundary (OpenCode Go / DeepSeek V4
+Flash when `LLM_*` are set) with a request-shaped deterministic fallback.
+Compose forwards `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL` into the API
+container. Case responses include `request_text`, `provider`,
+`fallback_reason`, and `model`.
 
-The reviewer frontend foundation is in `frontend/`. `docs/frontend-plan.md` is
-its authoritative product and implementation specification. Subphases 9.1–9.7
-are implemented: scaffold, typed API client, design tokens, primitives, product
-entry, case intake, reviewer workspace, human edits, the decision gate, the
-audit trace experience, and end-to-end quality checks. FastAPI retains all
+Synthetic catalogues cover five demo families (portal login 500, VPN
+certificate, invoice PDF timeout, outbound email delay, SSO MFA loop). Tools
+match fixture keywords as substrings of the request text. The canonical
+login-500 path still returns `kb-auth-5xx-after-release`, `inc-104`, and
+`status-portal-auth-5xx`.
+
+The reviewer SPA (`frontend/`) implements subphases 9.1–9.7: intake with five
+demo chips, denser dark workspace, AI provenance (`AI · {model}` or
+`Offline fallback`), edits, decision gate, and trace. FastAPI retains
 approval, execution, idempotency, and security enforcement. The browser
-receives only `VITE_API_BASE_URL`. Case API responses include `request_text`.
+receives only `VITE_API_BASE_URL`. Next planned work is subphase 9.8
+(Vercel Hobby SPA deploy). Public backend hosting is out of that subphase.

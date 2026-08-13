@@ -74,6 +74,10 @@ We have recorded the access incident and are checking it with Engineering. Pleas
 
 The operator may change the priority, add facts, change the reply, reject the proposal, or approve the incident draft. Approval executes exactly one fixture-backed mock action and adds the result to the audit trail.
 
+Additional intake demos (VPN certificate, invoice PDF timeout, outbound email
+delay, SSO MFA loop) use the same tools and gate. Each has its own fixture IDs
+and must not reuse the login-500 brief.
+
 ## Non-goals for the MVP
 
 - A full ticketing/helpdesk platform.
@@ -87,6 +91,7 @@ The operator may change the priority, add facts, change the reply, reject the pr
 The MVP is complete when a fresh local setup can demonstrate and test all of the following:
 
 - a case starts from one free-text request;
+- a reviewer can complete the path in the local SPA without Swagger;
 - the graph produces typed triage and a resolution brief;
 - three fixture-backed read-only tools are called and logged;
 - the proposed write action cannot execute before a human approval;
@@ -97,10 +102,8 @@ The MVP is complete when a fresh local setup can demonstrate and test all of the
 ## Future paths, deliberately deferred
 
 - Replace fixture search with an adapter to a semantic retrieval/reranking service.
-- Build the thin reviewer UI described in
-  [frontend-plan.md](frontend-plan.md), centered on intake, evidence-backed
-  review, approval/rejection, and trace visualization. Foundation scaffolding
-  is implemented; the remaining reviewer screens are still planned.
+- Deploy the reviewer SPA to Vercel Hobby (subphase 9.8) as personal,
+  non-commercial frontend hosting. Local reviewer screens are implemented.
 - Add a real ticketing connector with idempotency and reconciliation.
 - Add evaluation datasets for routing, retrieval grounding, clarification and unsafe-action rates.
-- Add provider-backed LLM calls behind a reproducible deterministic test mode.
+- Broaden provider evaluation beyond the current OpenCode Go / DeepSeek path.

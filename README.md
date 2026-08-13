@@ -4,11 +4,11 @@
 
 AI Support Operator Copilot accepts an unstructured support request, gathers evidence from bounded tools, produces a reviewable resolution brief, and pauses before any external action. A human can correct the analysis, edit the customer-facing reply, approve or reject an action, and inspect the full audit trail.
 
-This is an API-first portfolio project. The initial release deliberately avoids a large frontend: FastAPI/OpenAPI and deterministic fixtures make the workflow inspectable and testable before a reviewer UI is added.
-
-A thin reviewer frontend is in progress (phase 9). It will be deployed as a
-personal, non-commercial frontend on Vercel Hobby; the FastAPI backend,
-PostgreSQL, policy gate, and all secrets remain outside the browser.
+This is an API-first portfolio project. FastAPI/OpenAPI and deterministic
+fixtures keep the workflow inspectable. A thin reviewer SPA in `frontend/`
+covers intake through human review and the audit trace (phase 9.1–9.7).
+Vercel Hobby deployment (9.8) is still planned. The FastAPI backend,
+PostgreSQL, policy gate, and all secrets stay outside the browser.
 
 ## Problem
 
@@ -79,9 +79,12 @@ uv run uvicorn app.main:app --reload
 ```
 
 Open `http://127.0.0.1:8000/docs` for the generated API documentation. Copy
-`.env.example` to `.env` only when local configuration is needed. LLM variables
-are optional: without all three, the application uses its deterministic offline
-fallback.
+`.env.example` to `.env` only when local configuration is needed. Set all three
+`LLM_*` variables to use an OpenAI-compatible provider. Docker Compose forwards
+those values into the API container. Without all three, or if the provider
+fails validation, the application uses a deterministic offline fallback that
+still follows the current request (it does not reuse a login-500 story for
+every case).
 
 Run the foundation checks with:
 
@@ -91,14 +94,15 @@ uv run ruff check .
 uv run mypy app
 ```
 
-## Local Docker demo — no LLM key required
+## Local Docker demo
 
-The repository now includes a PostgreSQL persistence foundation. It stores the
-minimal durable `cases` record; typed workflow state, reviews, and audit events
-are added in later roadmap phases.
+Compose starts PostgreSQL 16 (host port `55432`) and the API. The API applies
+migrations, then serves cases, reviews, checkpoints, audit events, and the
+mock incident store. LLM credentials are optional for a working demo; with a
+key in `.env`, the API container receives `LLM_API_KEY`, `LLM_BASE_URL`, and
+`LLM_MODEL` and calls the provider.
 
-Start the complete local stack (PostgreSQL is exposed on port `55432` to avoid
-common local PostgreSQL port conflicts):
+Start the stack:
 
 ```powershell
 docker compose up --build
@@ -142,20 +146,17 @@ LLM_MODEL=provider-model-name
 ```
 
 Leaving any of these unset selects the deterministic offline fallback. The same
-fallback is used when a provider request fails or its response does not match
-the typed contract. Provider errors and credentials are not returned in the
-result. In every mode, proposed actions are drafts created by application code;
-model output cannot execute or authorize a write.
+fallback is used when a provider request fails, times out (60s), or its
+response does not match the typed contract. Provider errors and credentials
+are not returned. Case responses expose `provider`, `fallback_reason`, and
+`model` (the configured model name when the provider succeeded). Proposed
+actions are always drafts created by application code; model output cannot
+execute or authorize a write.
 
-The supplied .env.example is configured for OpenCode Go with DeepSeek V4
-Flash:
-
-LLM_BASE_URL=https://opencode.ai/zen/go/v1
-LLM_MODEL=deepseek-v4-flash
-
-Set only LLM_API_KEY in your local .env. The provider prompt contains the
-exact JSON contract required by the API, uses deterministic sampling
-(temperature: 0), and rejects any response that fails Pydantic validation.
+`.env.example` targets OpenCode Go with DeepSeek V4 Flash
+(`https://opencode.ai/zen/go/v1`, `deepseek-v4-flash`). Set `LLM_API_KEY` in
+`.env` for a live local model. Recreate the API container after changing
+`.env` so Compose interpolates the new values.
 
 ## Implemented case API
 
@@ -170,8 +171,12 @@ After applying migrations and starting PostgreSQL, the API now exposes:
 - `GET /cases/{case_id}/trace` — returns the ordered persisted audit trace.
 
 The canonical login HTTP 500 after update request returns P1 triage, the three
-fixture evidence source IDs, and proposed actions. It never executes an action:
-the action occurs only after an operator uses the review API.
+matching fixture IDs (`kb-auth-5xx-after-release`, `inc-104`,
+`status-portal-auth-5xx`), and proposed actions. Four additional demo
+catalogues cover VPN certificate, invoice PDF timeout, outbound email delay,
+and SSO MFA loop. Tools match fixture keywords as substrings of the request
+text; unmatched requests return empty evidence and still stop at the human
+gate. No action executes until an operator uses the review API.
 
 ## Reviewer frontend (local)
 
@@ -185,10 +190,13 @@ npm run dev
 ```
 
 `frontend/.env.development` points at `http://127.0.0.1:8000`. Start the API
-separately. Production builds require `VITE_API_BASE_URL` to be set; an absent
-or invalid value fails the build. The frontend never receives `LLM_API_KEY` or
-`DATABASE_URL`. Open `/dev/components` for the primitive gallery. Pattern
-accessibility states are in [docs/frontend-patterns.md](docs/frontend-patterns.md).
+separately. Production builds require `VITE_API_BASE_URL`; an absent or invalid
+value fails the build. The frontend never receives `LLM_API_KEY` or
+`DATABASE_URL`. Intake offers five named demo chips plus a random “Use demo
+request” control. The case header shows `AI · {model}` when the provider
+succeeded, or `Offline fallback`. Open `/dev/components` for the primitive
+gallery. Pattern accessibility states are in
+[docs/frontend-patterns.md](docs/frontend-patterns.md).
 
 Frontend checks:
 
@@ -208,8 +216,8 @@ the API environment.
 
 ## Status
 
-**API MVP implemented.** Frontend subphases 9.1–9.7 are implemented;
-Vercel deployment is still planned.
+**API MVP implemented.** Reviewer UI subphases 9.1–9.7 are implemented.
+Subphase 9.8 (Vercel Hobby SPA deploy) is next and is still planned.
 
 ## Related work
 

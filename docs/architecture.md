@@ -12,7 +12,7 @@
 ## System context
 
 ```text
-API client / Swagger
+Reviewer SPA (Vite) / API client / Swagger
         |
         v
 FastAPI case API -------------------------+
@@ -32,6 +32,7 @@ LangGraph case workflow
         +--> knowledge tool (fixtures)
         +--> similar-case tool (fixtures)
         +--> service-status tool (fixtures)
+        +--> OpenAI-compatible LLM (optional; structured JSON only)
         +--> mock ticketing write tool
 ```
 
@@ -48,7 +49,9 @@ LangGraph case workflow
 | `execute_approved_action` | persisted approved proposal | mock ticket record | fixture write only |
 | `finalize` | effective case state | final reply/status/audit event | persists state |
 
-A real LLM, when added, is only allowed in `triage` and `build_brief`, and must return structured data validated at the boundary. It does not receive a write capability directly.
+A configured LLM is allowed only in `triage` and `build_brief` through
+`TriageAndBriefService`. It must return structured data validated at the
+boundary. It does not receive a write capability.
 
 ### Implemented intake graph and checkpoints
 
@@ -76,13 +79,18 @@ write-capable action remains `proposed` and requires the later policy gate.
 
 The default local configuration targets OpenCode Go's
 `https://opencode.ai/zen/go/v1` endpoint with `deepseek-v4-flash`. Its base URL
-excludes `/chat/completions` because the adapter appends that path.
+excludes `/chat/completions` because the adapter appends that path. The HTTP
+client uses a 60-second timeout. Docker Compose interpolates `LLM_*` from the
+host `.env` into the API container (`DATABASE_URL` still points at the Compose
+Postgres service).
 
 When `LLM_API_KEY`, `LLM_BASE_URL`, or `LLM_MODEL` is absent, or when a provider
 request or validation fails, `TriageAndBriefService` returns a deterministic
-offline result. Its result reports only bounded fallback reasons
-(`provider_not_configured` or `provider_output_unavailable`), never a provider
-exception message, response body, or credential.
+offline result shaped by the current request and matched evidence (VPN, billing,
+email, SSO, login-500, or a generic remainder). Its result reports only bounded
+fallback reasons (`provider_not_configured` or `provider_output_unavailable`),
+never a provider exception message, response body, or credential. Case JSON
+includes `provider`, `fallback_reason`, and `model`.
 
 ## State model
 
@@ -120,10 +128,13 @@ traceable source IDs, review edits, and execution outcomes. In particular, a
 successful mock execution needs an external reference; the contract does not
 make a provider-side effect possible.
 
-`fixtures/` contains schema-validated, deterministic synthetic catalogues for
-the login HTTP 500 after update scenario. Their stable IDs are
-`kb-auth-5xx-after-release`, `inc-104`, and `status-portal-auth-5xx`; the
-implemented read-only tools return them as traceable evidence.
+`fixtures/` contains schema-validated synthetic catalogues. The canonical
+login HTTP 500 after update IDs remain `kb-auth-5xx-after-release`, `inc-104`,
+and `status-portal-auth-5xx`. Additional entries cover VPN certificate
+rotation, invoice PDF timeout, outbound email delay, and SSO MFA loop. Read-only
+tools return a fixture when any of its keywords is a substring of the query.
+`check_service_status` uses the case request text, not a hardcoded service
+name. Unmatched queries return no evidence.
 
 ## Tool contracts
 
@@ -207,17 +218,17 @@ PostgreSQL is the target datastore because it supports durable case state, audit
 
 ### Implemented persistence foundation
 
-The application currently has a SQLAlchemy 2 repository and Alembic baseline
-migration for the `cases` table. `CaseRecord` persists only `id`,
-`raw_request`, `status`, `created_at`, and `updated_at`; it deliberately does
-not yet expose a case API or claim to persist the future domain contract.
+The application uses SQLAlchemy 2 and Alembic. Durable tables include `cases`,
+`audit_events`, `workflow_checkpoints`, and `mock_incidents`. `CaseRecord`
+stores `id`, `raw_request`, `status`, and timestamps; the latest JSON-safe
+graph checkpoint holds triage, evidence, brief, provider provenance, and review
+outcome.
 
 `CaseRepository.create` commits and refreshes the record, while `get` reloads
 it by UUID. The integration test uses a separate database selected through
-`TEST_DATABASE_URL` and truncates only that database's `cases` table. Docker
-Compose supplies PostgreSQL 16 and starts the API only after the database
-health check passes; the API container runs `alembic upgrade head` before
-Uvicorn starts.
+`TEST_DATABASE_URL` and truncates that database's `cases` table. Docker Compose
+supplies PostgreSQL 16 and starts the API only after the database health check
+passes; the API container runs `alembic upgrade head` before Uvicorn starts.
 
 ## Observability
 
@@ -231,13 +242,15 @@ The MVP uses its own persisted audit events as the source of truth for the user-
 - Avoid logging full sensitive request content if real integrations are later introduced; define redaction first.
 - API auth is out of MVP scope; therefore the demo must remain local-only until an authentication model exists.
 
-## Planned reviewer frontend boundary
+## Reviewer frontend boundary
 
-The reviewer UI is a static React/TypeScript application in `frontend/`. It
-presents the workflow and holds only temporary form state; FastAPI remains
-authoritative for case state, review decisions, policy enforcement, execution
-idempotency, and audit order. The browser receives `VITE_API_BASE_URL` and no
-LLM or database credentials.
+The reviewer UI is a static React/TypeScript application in `frontend/`
+(subphases 9.1–9.7 implemented; 9.8 Vercel deploy still planned). It presents
+the workflow and holds only temporary form state; FastAPI remains authoritative
+for case state, review decisions, policy enforcement, execution idempotency,
+and audit order. The browser receives `VITE_API_BASE_URL` and no LLM or
+database credentials. Intake can insert one of five demo requests. The case
+header shows `AI · {model}` or `Offline fallback`.
 
 CORS is an explicit allowlist from `CORS_ALLOW_ORIGINS` (comma-separated). The
 local default is `http://localhost:5173,http://127.0.0.1:5173`. An empty value

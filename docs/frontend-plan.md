@@ -7,9 +7,10 @@ main product advantage is not chat-style text generation; it is a visible,
 controlled path from an incomplete request to evidence, a proposed action, a
 human decision, and an auditable result.
 
-This document is the authoritative interface plan for roadmap phase 9. All
-features described here are planned unless explicitly marked as already
-available in the backend.
+This document is the authoritative interface plan for roadmap phase 9.
+Subphases 9.1–9.7 are implemented. Subphase 9.8 (Vercel Hobby static deploy)
+is still planned. Backend behavior described here is available unless marked
+planned.
 
 ## Experience goals
 
@@ -85,7 +86,7 @@ Use or adapt these catalog patterns when implementing the corresponding UI:
 
 | Beautiful UI pattern | Project use | Required adaptation |
 | --- | --- | --- |
-| Loading State | Case intake analysis and independent trace loading | Show only stages and elapsed state supported by the API. Use a section-shaped skeleton for initial case loading, stop motion when the request settles, and provide an accessible text status. |
+| Loading | Case intake and independent trace loading | Use the submit button `aria-busy` state plus Task Rows during intake. Case load uses a short `role="status"` text. Do not restore the removed pixel-grid Loading State. |
 | Task Rows | Workflow rail and compact trace progress summary | Map rows to the real Request, Evidence, Brief, Human review, Outcome, and audit events. Preserve backend order and use text plus icons for running, completed, failed, and waiting states. |
 | Approval Card | Human review gate and explicit approve/reject confirmation | Keep approve and reject equally understandable, show the exact proposed action and consequences, require an explicit decision, and keep keyboard focus behavior compliant. Never execute from a purely client-side state change. |
 | Recommendation Card | Proposed action card | Use the clear hierarchy, alternatives, and primary action layout. Replace any generic confidence meter with evidence strength, policy result, and uncertainty text derived from the API; confidence must never imply authorization. |
@@ -161,11 +162,11 @@ The page contains one focused input card:
 - clear label “Describe the support issue”;
 - multiline text area with remaining-character guidance;
 - named demo scenario chips plus “Use demo request” (random among them);
-- submit button labelled “Analyze request”;
+- submit button labelled “Analyze request” (`aria-busy` while the mutation is in flight);
 - adjacent privacy note: synthetic/local data only for the demo;
 - short explanation of what happens next and that no action will execute.
 
-On submit, disable duplicate submission, show the real workflow stages, and
+On submit, disable duplicate submission, show Task Rows for workflow stages, and
 navigate to `/cases/{caseId}` after the API returns. Do not simulate streaming
 steps that the backend does not expose.
 
@@ -206,7 +207,7 @@ Show:
 - short case ID with a copy action;
 - status badge using text plus color;
 - priority and risk badges;
-- “Offline deterministic” or “Provider-backed” provenance badge;
+- “Offline fallback” or `AI · {model}` provenance chip;
 - refresh action and last successful fetch time.
 
 Status language must be human-readable: “Waiting for review”, “Completed”, or
@@ -451,8 +452,8 @@ Deliver:
 - Button, Badge, Card, TextField, TextArea, Dialog, Callout, Skeleton, and
   visually-hidden primitives;
 - implement the relevant Beautiful UI reference patterns through local
-  primitives: Loading State, Task Rows, Approval Card, Recommendation Card,
-  Context Cards, and Filter Table;
+  primitives: Task Rows, Approval Card, Recommendation Card, Context Cards,
+  and Filter Table (the pixel-grid Loading State was removed);
 - responsive header, content container, and error boundary;
 - Storybook is optional and should be added only if component development needs
   it; a dedicated `/dev/components` route is sufficient for the MVP.
@@ -475,7 +476,7 @@ Deliver:
 - workflow-oriented product entry page;
 - new-case form with demo-request insertion;
 - create mutation, validation, duplicate-submit protection, and navigation;
-- real loading state reflecting the synchronous API call.
+- in-flight submit uses `aria-busy` plus Task Rows (no pixel-grid loader).
 
 Acceptance:
 
@@ -492,7 +493,7 @@ Deliver:
 - case header and workflow rail;
 - request, triage, facts, inferences, missing-information, evidence, brief, and
   proposed-action sections;
-- provider/fallback provenance and fixture labels;
+- provider/fallback provenance (`AI · {model}` or `Offline fallback`) and fixture labels;
 - responsive desktop/tablet/mobile composition.
 
 Acceptance:
@@ -558,6 +559,8 @@ Acceptance:
 - production build contains no credential-like strings.
 
 ### Step 9.8 — Static deployment and handoff
+
+Status: planned.
 
 Deliver:
 

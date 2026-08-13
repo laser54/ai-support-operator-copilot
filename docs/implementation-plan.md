@@ -251,6 +251,12 @@ Verification: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` w
 Documentation: Updated `docs/frontend-plan.md`, `PROJECT_CONTEXT.md`, `README.md`, `.github/workflows/ci.yml`, and this roadmap.
 Follow-up: Continue with subphase 9.8 (static deployment and handoff). Do not mark phase 9 complete until 9.8.
 
+Updated: 2026-08-13
+Scope: Aligned documentation with the implemented local stack: Compose forwards LLM credentials; case JSON includes `model`; five keyword-matched demo fixtures; request-shaped fallback; denser reviewer chrome without the pixel-grid loader; intake demo chips and `AI · {model}` / `Offline fallback` provenance.
+Verification: Documentation-only review against `compose.yaml`, `app/llm/service.py`, `app/tools/read_only.py`, `frontend/src/features/intake/constants.ts`, and `frontend/src/features/case-review/status.ts`.
+Documentation: Updated `README.md`, `PROJECT_CONTEXT.md`, `CONTRIBUTING.md`, `docs/architecture.md`, `docs/demo.md`, `docs/product.md`, `docs/frontend-plan.md`, `docs/frontend-patterns.md`, and this roadmap.
+Follow-up: Subphase 9.8 remains the next implementation step.
+
 ## MVP boundaries
 
-The roadmap does not authorize authentication, real ticketing or other production integrations, autonomous writes, a vector database, or real customer data. The thin reviewer frontend is deferred to phase 9, after the API MVP is complete; it does not broaden the product boundary.
+The roadmap does not authorize authentication, real ticketing or other production integrations, autonomous writes, a vector database, or real customer data. The thin reviewer frontend is phase 9; subphases 9.1–9.7 are implemented and 9.8 remains planned. It does not broaden the product boundary.

@@ -11,7 +11,7 @@ The first milestone is one demonstrable workflow, not a helpdesk product:
 5. persist a trace and stop for human review;
 6. resume only after an explicit human decision.
 
-Do not add a full helpdesk product, real ticketing integrations, multi-agent supervisors, authentication, payments, or autonomous sends before this path is tested end to end. The reviewer frontend in phase 9 is limited to the workflow in [docs/frontend-plan.md](docs/frontend-plan.md).
+Do not add a full helpdesk product, real ticketing integrations, multi-agent supervisors, authentication, payments, or autonomous sends before this path is tested end to end. The reviewer frontend in `frontend/` follows [docs/frontend-plan.md](docs/frontend-plan.md); remaining planned work there is subphase 9.8.
 
 ## Engineering rules
 
