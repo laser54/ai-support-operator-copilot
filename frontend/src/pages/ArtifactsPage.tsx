@@ -25,6 +25,7 @@ import { TextField } from "../components/primitives/TextField";
 import { TextArea } from "../components/primitives/TextArea";
 import { sampleArtifacts } from "../features/case-review/fixtures";
 import fieldStyles from "../components/primitives/Field.module.css";
+import { artifactTimestamp } from "./artifactTimestamp";
 import styles from "./ArtifactsPage.module.css";
 
 const SOURCE_ICONS = {
@@ -75,22 +76,17 @@ export function ArtifactsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (entry: ArtifactEntry) => {
-      try {
-        const casesApi = createCasesApi(createApiClient({ baseUrl: getApiBaseUrl() }));
-        return await casesApi.saveArtifact(entry);
-      } catch {
-        // Fallback in-memory mutation
-        const existingIndex = sampleArtifacts.findIndex((item) => item.source_id === entry.source_id);
-        if (existingIndex >= 0) {
-          sampleArtifacts[existingIndex] = entry;
-        } else {
-          sampleArtifacts.push(entry);
-        }
-        return entry;
-      }
+      const casesApi = createCasesApi(createApiClient({ baseUrl: getApiBaseUrl() }));
+      return casesApi.saveArtifact(entry);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["artifacts"] });
+    onSuccess: (savedArtifact) => {
+      queryClient.setQueryData<ArtifactEntry[]>(["artifacts"], (current = []) => {
+        const index = current.findIndex((item) => item.source_id === savedArtifact.source_id);
+        if (index < 0) {
+          return [...current, savedArtifact];
+        }
+        return current.map((item) => (item.source_id === savedArtifact.source_id ? savedArtifact : item));
+      });
       closeForm();
     },
   });
@@ -170,7 +166,7 @@ export function ArtifactsPage() {
         .split(",")
         .map((k) => k.trim())
         .filter(Boolean),
-      observed_at: new Date().toISOString(),
+      observed_at: artifactTimestamp(),
     };
     saveMutation.mutate(entry);
   }
