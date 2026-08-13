@@ -35,10 +35,10 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=rag-stack_internal
-      - traefik.http.routers.ai-support-http.rule=Host(`copilot.larin.work`)
+      - traefik.http.routers.ai-support-http.rule=Host(`api.copilot.larin.work`)
       - traefik.http.routers.ai-support-http.entrypoints=web
       - traefik.http.routers.ai-support-http.middlewares=to-https@docker
-      - traefik.http.routers.ai-support.rule=Host(`copilot.larin.work`)
+      - traefik.http.routers.ai-support.rule=Host(`api.copilot.larin.work`)
       - traefik.http.routers.ai-support.entrypoints=websecure
       - traefik.http.routers.ai-support.tls.certresolver=le
       - traefik.http.services.ai-support.loadbalancer.server.port=8000
