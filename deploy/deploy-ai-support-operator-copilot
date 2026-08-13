@@ -34,10 +34,13 @@ trap cleanup EXIT
 
 printf '%s' "$registry_token" | docker login ghcr.io -u laser54 --password-stdin >/dev/null
 
-compose_url="https://raw.githubusercontent.com/$REPOSITORY/$sha/deploy/docker-compose.production.yml"
+compose_url="https://api.github.com/repos/$REPOSITORY/contents/deploy/docker-compose.production.yml?ref=$sha"
 tmp_compose=$(mktemp "$RUNTIME_DIR/docker-compose.production.yml.XXXXXX")
 trap 'rm -f "$tmp_compose"; cleanup' EXIT
-curl --fail --silent --show-error --location --max-time 30 "$compose_url" -o "$tmp_compose"
+curl --fail --silent --show-error --location --max-time 30 \
+  -H "Authorization: Bearer $registry_token" \
+  -H 'Accept: application/vnd.github.raw+json' \
+  "$compose_url" -o "$tmp_compose"
 IMAGE_TAG="$sha" docker compose --env-file "$ENV_FILE" -f "$tmp_compose" config --quiet
 install -m 600 "$tmp_compose" "$COMPOSE"
 
