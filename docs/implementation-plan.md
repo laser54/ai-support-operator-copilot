@@ -7,7 +7,7 @@ This document is the authoritative sequential implementation guide for the repos
 **Current milestone:** MVP vertical slice
 
 **Current phase:** 9 — Reviewer frontend and Vercel Hobby deployment
-**Overall status:** 9.3 complete; 9.4 is next
+**Overall status:** 9.4 complete; 9.5 is next
 
 ## Status legend
 
@@ -226,6 +226,12 @@ Scope: Subphase 9.3 — product entry page, demo-request intake form, create-cas
 Verification: `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build` with `VITE_API_BASE_URL=http://127.0.0.1:8000` passed in `frontend/`.
 Documentation: Updated `docs/frontend-plan.md`, `PROJECT_CONTEXT.md`, `README.md`, and this roadmap.
 Follow-up: Continue with subphase 9.4 (read-only reviewer workspace). Do not mark phase 9 complete until 9.8.
+
+Completed: 2026-08-13
+Scope: Subphase 9.4 — read-only reviewer workspace with case header, workflow rail, request/triage/facts/inferences/missing information/evidence/brief/proposed action, provenance badges, 404 recovery, and collapsed trace summary. GET/POST case responses now include `request_text`.
+Verification: `uv run pytest tests/test_case_response.py -q` passed; `uv run ruff check app tests` passed; `uv run mypy app` passed; `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build` with `VITE_API_BASE_URL=http://127.0.0.1:8000` passed in `frontend/`.
+Documentation: Updated `docs/frontend-plan.md`, `docs/architecture.md`, `PROJECT_CONTEXT.md`, `README.md`, and this roadmap.
+Follow-up: Continue with subphase 9.5 (human edits and decision gate). Do not mark phase 9 complete until 9.8.
 
 ## MVP boundaries
 

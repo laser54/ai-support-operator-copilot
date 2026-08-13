@@ -57,6 +57,7 @@ export type ResolutionBrief = {
 export type CaseResponse = {
   case_id: string;
   status: CaseStatus;
+  request_text: string;
   triage: Triage;
   evidence: Evidence[];
   resolution_brief: ResolutionBrief;

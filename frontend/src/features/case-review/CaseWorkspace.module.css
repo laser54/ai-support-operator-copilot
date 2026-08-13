@@ -1,0 +1,74 @@
+.workspace {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.layout {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.rail {
+  overflow-x: auto;
+}
+
+.header,
+.badges,
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.header {
+  justify-content: space-between;
+}
+
+.caseId {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.fetched {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.quote {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--color-primary);
+  background: var(--color-surface-muted);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.trace {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-3) var(--space-4);
+}
+
+@media (min-width: 64rem) {
+  .layout {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .rail {
+    position: sticky;
+    top: var(--space-4);
+  }
+}

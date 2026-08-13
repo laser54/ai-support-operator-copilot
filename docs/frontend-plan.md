@@ -485,6 +485,8 @@ Acceptance:
 
 ### Step 9.4 — Read-only reviewer workspace
 
+Status: implemented.
+
 Deliver:
 
 - case header and workflow rail;

@@ -34,6 +34,7 @@ class CaseResponse(BaseModel):
 
     case_id: UUID
     status: str
+    request_text: str
     triage: dict[str, object]
     evidence: list[dict[str, object]]
     resolution_brief: dict[str, object]
@@ -63,6 +64,7 @@ def _response(state: dict[str, object]) -> CaseResponse:
     return CaseResponse(
         case_id=UUID(str(state["case_id"])),
         status=str(state["status"]),
+        request_text=str(state["request_text"]),
         triage=cast(dict[str, object], state["triage"]),
         evidence=cast(list[dict[str, object]], state["evidence"]),
         resolution_brief=cast(dict[str, object], state["resolution_brief"]),

@@ -1,11 +1,5 @@
-import { useParams } from "react-router";
+import { CaseWorkspace } from "../features/case-review/CaseWorkspace";
 
 export function CasePage() {
-  const { caseId } = useParams();
-
-  return (
-    <>
-      <h1>Case {caseId}</h1>
-    </>
-  );
+  return <CaseWorkspace />;
 }

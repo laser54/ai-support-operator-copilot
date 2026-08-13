@@ -9,16 +9,18 @@ export function ContextCard({
   toolName,
   observedAt,
   retrievalReason,
+  onCopy,
 }: {
   sourceType: string;
   sourceId: string;
   excerpt: string;
   toolName: string;
   observedAt: string;
-  retrievalReason: string;
+  retrievalReason?: string;
+  onCopy?: (sourceId: string) => void | Promise<void>;
 }) {
   async function copySourceId() {
-    await navigator.clipboard.writeText(sourceId);
+    await (onCopy ?? ((value: string) => navigator.clipboard.writeText(value)))(sourceId);
   }
 
   return (
@@ -32,7 +34,7 @@ export function ContextCard({
         Copy source ID
       </button>
       <p className={styles.excerpt}>{excerpt}</p>
-      <p className={styles.reason}>{retrievalReason}</p>
+      {retrievalReason ? <p className={styles.reason}>{retrievalReason}</p> : null}
       <p className={styles.metaText}>
         {toolName} · {observedAt}
       </p>

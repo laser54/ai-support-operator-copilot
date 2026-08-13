@@ -54,7 +54,7 @@ maintained in [docs/implementation-plan.md](docs/implementation-plan.md).
 ## API surface
 
 - `POST /cases` — create a case and execute intake through the review gate.
-- `GET /cases/{case_id}` — retrieve case state, brief, evidence and audit events.
+- `GET /cases/{case_id}` — retrieve case state, original request, brief, evidence and audit events.
 - `POST /cases/{case_id}/review` — submit an operator correction, edited reply, or approval decision.
 - `GET /cases/{case_id}/trace` — inspect ordered graph/tool/review events.
 
@@ -195,8 +195,8 @@ the API environment.
 
 ## Status
 
-**API MVP implemented.** Frontend subphases 9.1–9.3 are implemented;
-the reviewer workspace and Vercel deployment are still planned.
+**API MVP implemented.** Frontend subphases 9.1–9.4 are implemented;
+edits/approval and Vercel deployment are still planned.
 
 ## Related work
 

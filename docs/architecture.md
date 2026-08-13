@@ -60,7 +60,7 @@ call, brief construction, and the policy gate in the ordered audit trail.
 
 The latest JSON-safe graph state is stored with the case and mirrored in the
 `workflow_checkpoints` table. `GET /cases/{case_id}` returns that latest
-checkpoint. This provides durable pause state for the review phase; it does not
+checkpoint, including the original `request_text`. This provides durable pause state for the review phase; it does not
 yet support a general graph-resume interface; the review and trace endpoints
 operate on the persisted checkpoint and audit trail.
 
