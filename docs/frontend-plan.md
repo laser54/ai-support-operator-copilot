@@ -425,6 +425,8 @@ substitute for the server source of truth.
 
 ### Step 9.1 — Frontend foundation
 
+Status: implemented.
+
 Deliver:
 
 - scaffold `frontend/` with React, TypeScript, and Vite;

@@ -6,9 +6,9 @@ AI Support Operator Copilot accepts an unstructured support request, gathers evi
 
 This is an API-first portfolio project. The initial release deliberately avoids a large frontend: FastAPI/OpenAPI and deterministic fixtures make the workflow inspectable and testable before a reviewer UI is added.
 
-A thin reviewer frontend is planned only after the API MVP is complete. It will
-be deployed as a personal, non-commercial frontend on Vercel Hobby; the FastAPI
-backend, PostgreSQL, policy gate, and all secrets remain outside the browser.
+A thin reviewer frontend is in progress (phase 9). It will be deployed as a
+personal, non-commercial frontend on Vercel Hobby; the FastAPI backend,
+PostgreSQL, policy gate, and all secrets remain outside the browser.
 
 ## Problem
 
@@ -47,7 +47,7 @@ request
 See [docs/product.md](docs/product.md) for scenarios and acceptance criteria,
 [docs/architecture.md](docs/architecture.md) for the technical design,
 [docs/demo.md](docs/demo.md) for the demonstrable API path, and
-[docs/frontend-plan.md](docs/frontend-plan.md) for the planned reviewer UI.
+[docs/frontend-plan.md](docs/frontend-plan.md) for the reviewer UI.
 The authoritative sequential implementation guide and completion evidence are
 maintained in [docs/implementation-plan.md](docs/implementation-plan.md).
 
@@ -65,6 +65,7 @@ maintained in [docs/implementation-plan.md](docs/implementation-plan.md).
 - LangGraph for explicit orchestration and pause/resume
 - fixture-backed tools for an offline, repeatable demo
 - pytest, Docker Compose and GitHub Actions
+- React, TypeScript, and Vite for the reviewer frontend (`frontend/`)
 
 No credentials or production integrations are required for the first vertical slice.
 
@@ -172,11 +173,29 @@ The canonical login HTTP 500 after update request returns P1 triage, the three
 fixture evidence source IDs, and proposed actions. It never executes an action:
 the action occurs only after an operator uses the review API.
 
+## Reviewer frontend (local)
+
+The API remains the source of truth. The browser app in `frontend/` is a static
+SPA and needs only `VITE_API_BASE_URL`.
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+`frontend/.env.development` points at `http://127.0.0.1:8000`. Start the API
+separately. Production builds require `VITE_API_BASE_URL` to be set; an absent
+or invalid value fails the build. The frontend never receives `LLM_API_KEY` or
+`DATABASE_URL`.
+
+CORS defaults to the local Vite origins. Override with `CORS_ALLOW_ORIGINS` in
+the API environment.
+
 ## Status
 
-**API MVP implemented.** The Docker stack runs the complete synthetic,
-human-reviewed workflow without provider credentials. Phase 9 is a deferred
-reviewer frontend and does not change the backend's safety boundary.
+**API MVP implemented.** Frontend subphase 9.1 (foundation) is implemented;
+intake, review workspace, and Vercel deployment are still planned.
 
 ## Related work
 

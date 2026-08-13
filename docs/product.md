@@ -81,7 +81,6 @@ The operator may change the priority, add facts, change the reply, reject the pr
 - Real CRM, status, messaging or ticketing integrations.
 - Multi-channel inboxes and authentication/roles.
 - Retrieval benchmarking claims or production data.
-- A rich web UI.
 
 ## Success criteria
 
@@ -100,7 +99,8 @@ The MVP is complete when a fresh local setup can demonstrate and test all of the
 - Replace fixture search with an adapter to a semantic retrieval/reranking service.
 - Build the thin reviewer UI described in
   [frontend-plan.md](frontend-plan.md), centered on intake, evidence-backed
-  review, approval/rejection, and trace visualization.
+  review, approval/rejection, and trace visualization. Foundation scaffolding
+  is implemented; the remaining reviewer screens are still planned.
 - Add a real ticketing connector with idempotency and reconciliation.
 - Add evaluation datasets for routing, retrieval grounding, clarification and unsafe-action rates.
 - Add provider-backed LLM calls behind a reproducible deterministic test mode.

@@ -117,8 +117,8 @@ roadmap phase is an optional deferred reviewer frontend. The API MVP has CI,
 Docker health checks, an executable local demo, and a deterministic no-key
 fallback; it is ready to run locally without LLM credentials.
 
-The reviewer frontend remains planned. `docs/frontend-plan.md` is its
-authoritative step-by-step product and implementation specification. The chosen
-shape is a focused React/TypeScript reviewer workspace, not a general helpdesk:
-intake, evidence-backed case review, human decision, and ordered trace. FastAPI
-retains all approval, execution, idempotency, and security enforcement.
+The reviewer frontend foundation is in `frontend/`. `docs/frontend-plan.md` is
+its authoritative product and implementation specification. Subphase 9.1 is
+implemented: Vite/React/TypeScript scaffold, typed API client, environment
+validation, and CI. FastAPI retains all approval, execution, idempotency, and
+security enforcement. The browser receives only `VITE_API_BASE_URL`.

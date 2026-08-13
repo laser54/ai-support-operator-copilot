@@ -149,5 +149,9 @@ def test_case_api_rejects_invalid_intake_and_unknown_case_ids(
 
     client = TestClient(app)
     assert client.post("/cases", json={"request_text": "", "unexpected": True}).status_code == 422
-    assert client.get("/cases/00000000-0000-0000-0000-000000000000").status_code == 404
-    assert client.get("/cases/00000000-0000-0000-0000-000000000000/trace").status_code == 404
+    missing = client.get("/cases/00000000-0000-0000-0000-000000000000")
+    missing_trace = client.get("/cases/00000000-0000-0000-0000-000000000000/trace")
+    assert missing.status_code == 404
+    assert missing.json() == {"error": {"code": "not_found", "message": "case not found"}}
+    assert missing_trace.status_code == 404
+    assert missing_trace.json() == {"error": {"code": "not_found", "message": "case not found"}}

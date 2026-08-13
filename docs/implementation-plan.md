@@ -7,7 +7,7 @@ This document is the authoritative sequential implementation guide for the repos
 **Current milestone:** MVP vertical slice
 
 **Current phase:** 9 — Reviewer frontend and Vercel Hobby deployment
-**Overall status:** ready to begin
+**Overall status:** 9.1 complete; 9.2 is next
 
 ## Status legend
 
@@ -181,7 +181,7 @@ Verification: `docker compose up --build` passed health, intake, approval, and t
 Documentation: Updated `README.md`, `docs/architecture.md`, `docs/demo.md`, `PROJECT_CONTEXT.md`, and this roadmap.
 Follow-up: Phase 9 may add the deferred reviewer frontend; the API MVP is ready for local demonstration without provider credentials.
 
-### 9. Reviewer frontend and Vercel Hobby deployment — not started
+### 9. Reviewer frontend and Vercel Hobby deployment — in progress
 
 **Dependencies:** phase 8 completed.
 
@@ -208,6 +208,12 @@ into a chat interface or expose hidden model reasoning.
 **Interface principle:** the UI must foreground the Request → Evidence → Brief
 → Human gate → Audit workflow. It must not present the product as a generic
 chatbot or hide facts, inferences, missing information, action state, or trace.
+
+Completed: 2026-08-13
+Scope: Subphase 9.1 — React/TypeScript/Vite frontend scaffold, typed fetch wrapper, `VITE_API_BASE_URL` validation, CI frontend jobs, CORS allowlist, and machine-readable 404 error envelopes.
+Verification: `uv run pytest tests/test_http_errors.py tests/test_health.py -q` passed; `uv run ruff check app tests` passed; `uv run mypy app` passed; `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build` with `VITE_API_BASE_URL=http://127.0.0.1:8000` passed in `frontend/`; production build without `VITE_API_BASE_URL` failed with the required configuration error.
+Documentation: Updated `README.md`, `PROJECT_CONTEXT.md`, `docs/architecture.md`, `docs/frontend-plan.md`, `.env.example`, and this roadmap.
+Follow-up: Continue with subphase 9.2 (tokens, primitives, application shell). Do not mark phase 9 complete until 9.8.
 
 ## MVP boundaries
 

@@ -233,12 +233,18 @@ The MVP uses its own persisted audit events as the source of truth for the user-
 
 ## Planned reviewer frontend boundary
 
-The planned reviewer UI is a static React/TypeScript application. It presents
-the workflow and holds only temporary form state; FastAPI remains authoritative
-for case state, review decisions, policy enforcement, execution idempotency, and
-audit order. The browser receives an API base URL but no LLM or database
-credentials. Browser integration requires an explicit CORS allowlist. Public
-backend exposure remains out of scope until authentication is designed.
+The reviewer UI is a static React/TypeScript application in `frontend/`. It
+presents the workflow and holds only temporary form state; FastAPI remains
+authoritative for case state, review decisions, policy enforcement, execution
+idempotency, and audit order. The browser receives `VITE_API_BASE_URL` and no
+LLM or database credentials.
+
+CORS is an explicit allowlist from `CORS_ALLOW_ORIGINS` (comma-separated). The
+local default is `http://localhost:5173,http://127.0.0.1:5173`. An empty value
+disables CORS. Expected HTTP failures such as 404 use
+`{"error":{"code":"...","message":"..."}}`; FastAPI validation errors remain
+422 with the framework's default body. Public backend exposure remains out of
+scope until authentication is designed.
 
 The detailed information architecture, visual direction, accessibility rules,
 API prerequisites, testing matrix, and phased delivery plan are maintained in
