@@ -27,9 +27,11 @@ describe("HomePage", () => {
       "href",
       "/cases/new",
     );
-    expect(screen.getByRole("link", { name: "API documentation" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /API documentation/i })).toHaveAttribute(
       "href",
       "http://127.0.0.1:8000/docs",
     );
+    expect(screen.getByRole("heading", { name: "Architectural Highlights" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Interactive Demo Scenarios" })).toBeInTheDocument();
   });
 });

@@ -4,7 +4,16 @@ import re
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-IGNORED_DIRECTORIES = {".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".venv"}
+IGNORED_DIRECTORIES = {
+    ".agent",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "dist",
+    "node_modules",
+}
 TEXT_SUFFIXES = {".example", ".ini", ".json", ".lock", ".md", ".py", ".toml", ".yaml", ".yml"}
 TEXT_FILENAMES = {".aiignore", ".dockerignore", ".gitignore", "Dockerfile"}
 NON_ENGLISH_SCRIPT = re.compile(

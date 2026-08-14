@@ -51,8 +51,8 @@ and verify the outcome without opening raw JSON.
 - storing LLM or database credentials in the browser;
 - a frontend proxy that weakens backend policy enforcement.
 
-These exclusions prevent the portfolio UI from implying production readiness
-or becoming a helpdesk product before the core reviewer workflow is proven.
+These exclusions prevent the reviewer UI from implying premature production readiness
+or becoming a helpdesk product before the core workflow is proven.
 
 ## Recommended technical shape
 

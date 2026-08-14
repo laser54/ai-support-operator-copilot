@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import { getApiBaseUrl, getCasesApi } from "../../api/runtime";
 import type { CaseResponse } from "../../api/types";
@@ -36,6 +36,8 @@ export function IntakeForm({
   createCase?: (requestText: string) => Promise<CaseResponse>;
 }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const scenarioParam = searchParams.get("scenario");
   const submitCase = createCase ?? ((requestText: string) => getCasesApi().create(requestText));
   const {
     register,
@@ -50,6 +52,15 @@ export function IntakeForm({
   });
   const requestText = watch("request_text");
   const remaining = REQUEST_MAX_LENGTH - requestText.length;
+
+  useEffect(() => {
+    if (scenarioParam) {
+      const matched = DEMO_SCENARIOS.find((s) => s.id === scenarioParam);
+      if (matched) {
+        setValue("request_text", matched.text, { shouldValidate: true });
+      }
+    }
+  }, [scenarioParam, setValue]);
   const mutation = useMutation({
     mutationFn: (requestText: string) => submitCase(requestText),
     onSuccess: (created) => {

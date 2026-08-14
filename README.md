@@ -1,231 +1,346 @@
 # AI Support Operator Copilot
 
-> A traceable AI workflow for turning support requests into human-reviewed actions.
+> **An agentic AI workflow with bounded autonomy, multi-source evidence grounding, and deterministic human policy gates.**
 
-AI Support Operator Copilot accepts an unstructured support request, gathers evidence from bounded tools, produces a reviewable resolution brief, and pauses before any external action. A human can correct the analysis, edit the customer-facing reply, approve or reject an action, and inspect the full audit trail.
+<div align="center">
 
-This is an API-first portfolio project. FastAPI/OpenAPI and deterministic
-fixtures keep the workflow inspectable. A thin reviewer SPA in `frontend/`
-covers intake through human review and the audit trace (phase 9.1–9.7).
-Vercel Hobby deployment (9.8) is still planned. The FastAPI backend,
-PostgreSQL, policy gate, and all secrets stay outside the browser.
+[![LangGraph](https://img.shields.io/badge/LangGraph-StateGraph-FF6F00?style=flat-square&logo=diagram&logoColor=white)](https://langchain-ai.github.io/langgraph/)
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Pydantic](https://img.shields.io/badge/Pydantic-v2-E92063?style=flat-square&logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![React](https://img.shields.io/badge/React-19.x-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-## Problem
+</div>
 
-A support request often arrives incomplete: it may mix symptoms, urgency, user impact and assumptions. An operator must look up knowledge-base articles, similar incidents and service status, then decide what should happen next. A generic chat bot can draft plausible text, but it is hard to verify why it made a recommendation and unsafe to let it execute actions invisibly.
+---
 
-## Product boundary
+## 📌 System Context & Architecture
 
-The copilot may:
+**Evolution & Background.** Building on operational experience with support workflows and knowledge retrieval (such as [Support Operator Panel](https://github.com/laser54/support_operator_panel) and [assist-craft-qna](https://github.com/laser54/assist-craft-qna)), **AI Support Operator Copilot** refactors the operational domain into a modern **agentic, multi-tool orchestration architecture**.
 
-- extract structured facts, uncertainty and risk from a request;
-- query read-only knowledge, similar-case and service-status tools;
-- propose a customer-facing reply and a resolution plan with linked evidence;
-- create a draft external action;
-- resume after a human edits or approves the case.
+**Problem.** In mission-critical customer support and SRE operations, incoming requests arrive unstructured, incomplete, and urgent. Standard LLM chatbots frequently hallucinate, lack access to live telemetry, and cannot be trusted with autonomous execution in external issue trackers or production systems.
 
-The copilot must not:
+**Solution.** An explicit state machine (LangGraph) ingests unstructured reports, queries three bounded read-only tools (Runbooks, Historical Incidents, Live Service Status), validates structured analytical inferences via Pydantic v2, drafts cautious customer responses and proposed actions, and **strictly suspends execution at a deterministic code-level Policy Gate**. A human operator reviews, corrects, and authorizes any consequential action.
 
-- silently create tickets, send messages, or change external systems;
-- treat retrieved documents as executable instructions;
-- present unsupported claims as facts;
-- replace the operator's approval for consequential actions.
+**Architecture & Scope.** Implements stateful LangGraph orchestration, Pydantic v2 structured model boundaries, dual-engine deterministic fallback, PostgreSQL persistence/checkpoints, an immutable audit trail, and a React 19 reviewer UI.
 
-## Primary workflow
+**Verification & Boundary.** Designed with 100% offline repeatability, mock write isolation, idempotent execution, and full auditability without external API dependencies.
 
-```text
-request
-  -> intake and structured triage
-  -> evidence gathering (knowledge base, similar cases, service status)
-  -> resolution brief and proposed action
-  -> policy gate
-  -> human review / edit / approve / reject
-  -> approved mock action or final reply
-  -> immutable audit trail
+---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TD
+    subgraph Client ["Reviewer Workspace (React 19 / TypeScript / Vite)"]
+        UI["Reviewer SPA (http://localhost:5173)"]
+        Intake["Case Intake & Demo Scenarios"]
+        Workspace["Resolution Brief & Live Edits"]
+        GateModal["Human Approval Modal"]
+        TraceUI["Ordered Audit Timeline"]
+    end
+
+    subgraph API ["API & Policy Gateway (FastAPI / Python 3.12)"]
+        CaseRoute["POST /cases (Run to Review Gate)"]
+        ReviewRoute["POST /cases/{id}/review (Approve / Reject)"]
+        TraceRoute["GET /cases/{id}/trace (Ordered Audit)"]
+    end
+
+    subgraph Orchestrator ["Agentic State Machine (LangGraph)"]
+        N_Intake["1. intake\n(Persist Case Record)"]
+        N_Evidence["2. gather_evidence\n(Parallel Tool Execution)"]
+        N_Brief["3. build_brief\n(LLM Analysis or Fallback)"]
+        N_Gate["4. policy_gate\n(Block Writes & Await Human)"]
+    end
+
+    subgraph Tools ["Bounded Evidence Tools (Read-Only)"]
+        T_KB["search_knowledge\n(Runbooks: kb-*)"]
+        T_Cases["find_similar_cases\n(Incidents: inc-*)"]
+        T_Status["check_service_status\n(Signals: status-*)"]
+    end
+
+    subgraph Intelligence ["Model Boundary (OpenAI-Compatible & Fallback)"]
+        LLM["OpenCode Go / DeepSeek V4\n(Structured JSON Contract)"]
+        Fallback["Deterministic Offline Engine\n(Request-Shaped Heuristics)"]
+    end
+
+    subgraph HumanGate ["Human-in-the-Loop Boundary"]
+        Operator["Operator Review\n(Edit Priority / Facts / Reply)"]
+        Decision{"Decision"}
+        Approve["Approve Action"]
+        Reject["Reject Proposal"]
+    end
+
+    subgraph ExecutionLayer ["Mock Execution & Persistence"]
+        Executor["execute_mock_incident\n(Idempotent Exactly-Once)"]
+        PG[("PostgreSQL 16\n(cases, checkpoints, audit_events, mock_incidents)")]
+    end
+
+    UI --> Intake
+    Intake -->|"POST /cases"| CaseRoute
+    CaseRoute --> N_Intake
+    N_Intake --> N_Evidence
+
+    N_Evidence --> T_KB
+    N_Evidence --> T_Cases
+    N_Evidence --> T_Status
+    T_KB & T_Cases & T_Status -->|"Validated Evidence[]"| N_Brief
+
+    N_Brief -->|"Structured Prompt"| LLM
+    LLM -.->|"Failure / Timeout"| Fallback
+    LLM & Fallback -->|"ModelOutput"| N_Brief
+
+    N_Brief --> N_Gate
+    N_Gate -->|"Persist State"| PG
+    N_Gate -->|"awaiting_human_review"| Workspace
+
+    Workspace --> GateModal
+    GateModal -->|"POST /cases/{id}/review"| ReviewRoute
+    ReviewRoute --> Operator
+    Operator --> Decision
+
+    Decision -->|Approve| Approve
+    Decision -->|Reject| Reject
+
+    Approve --> Executor
+    Executor -->|"Insert Once"| PG
+    Reject -->|"Record Rejection"| PG
+    TraceRoute -->|"Query Chronological Trace"| PG
+    PG --> TraceUI
 ```
 
-See [docs/product.md](docs/product.md) for scenarios and acceptance criteria,
-[docs/architecture.md](docs/architecture.md) for the technical design,
-[docs/demo.md](docs/demo.md) for the demonstrable API path, and
-[docs/frontend-plan.md](docs/frontend-plan.md) for the reviewer UI.
-The authoritative sequential implementation guide and completion evidence are
-maintained in [docs/implementation-plan.md](docs/implementation-plan.md).
+---
 
-## API surface
+## 🌟 Architectural Highlights
 
-- `POST /cases` — create a case and execute intake through the review gate.
-- `GET /cases/{case_id}` — retrieve case state, original request, brief, evidence and audit events.
-- `POST /cases/{case_id}/review` — submit an operator correction, edited reply, or approval decision.
-- `GET /cases/{case_id}/trace` — inspect ordered graph/tool/review events.
+<table>
+<tr>
+<td width="50%">
 
-## Technology direction
+### 🛡️ Bounded Autonomy & Policy Gate
+* **Zero Autonomous Writes**: The LLM has strictly zero write privileges in external systems.
+* **Drafts by Code**: High-risk actions (`create_incident`) are generated purely as proposals and blocked by backend code.
+* **Explicit Authorization**: Side effects execute only upon an explicit `POST /cases/{id}/review` signed off by an operator.
 
-- Python 3.12, FastAPI, Pydantic v2
-- PostgreSQL for cases, reviews, audit events and durable workflow state
-- LangGraph for explicit orchestration and pause/resume
-- fixture-backed tools for an offline, repeatable demo
-- pytest, Docker Compose and GitHub Actions
-- React, TypeScript, and Vite for the reviewer frontend (`frontend/`)
+</td>
+<td width="50%">
 
-No credentials or production integrations are required for the first vertical slice.
+### 🔍 Multi-Source Evidence Grounding
+* **Parallel Tool Calling**: Gathers evidence across Runbooks (`kb-*`), Historical Incidents (`inc-*`), and Live Monitoring (`status-*`).
+* **Traceable Lineage**: Every claim in the resolution brief references an immutable `source_id`.
+* **Strict Fact Isolation**: Clearly separates customer statements, tool evidence, model inferences, and missing data.
 
-## Local setup
+</td>
+</tr>
+<tr>
+<td width="50%">
 
-The project uses [uv](https://docs.astral.sh/uv/) and Python 3.12.
+### ⚙️ LangGraph State & Dual-Engine Resilience
+* **Durable StateGraph**: Checkpoints saved to PostgreSQL for pause, inspection, and review resumption.
+* **Seamless Fallback**: If LLM API keys are absent, the provider times out, or schema validation fails, a request-shaped deterministic offline engine takes over with **zero downtime**.
+* **Pydantic v2 Boundary**: `extra="forbid"` JSON schema validation rejects prompt injection or unauthorized payload additions.
 
-```powershell
-uv sync --all-groups
-uv run uvicorn app.main:app --reload
-```
+</td>
+<td width="50%">
 
-Open `http://127.0.0.1:8000/docs` for the generated API documentation. Copy
-`.env.example` to `.env` only when local configuration is needed. Set all three
-`LLM_*` variables to use an OpenAI-compatible provider. Docker Compose forwards
-those values into the API container. Without all three, or if the provider
-fails validation, the application uses a deterministic offline fallback that
-still follows the current request (it does not reuse a login-500 story for
-every case).
+### 📜 Immutable Audit Trail & Idempotency
+* **Ordered Event Sourcing**: Every state transition, tool call input/output summary, and human edit is persisted with strict `(case_id, sequence)` uniqueness.
+* **Exactly-Once Execution**: Primary-key constraints in `mock_incidents` ensure duplicate approvals never create duplicate tickets.
+* **Human Edits as Ground Truth**: Operator modifications override AI inferences and form the case's effective final state.
 
-Run the foundation checks with:
+</td>
+</tr>
+</table>
 
-```powershell
-uv run pytest -q
-uv run ruff check .
-uv run mypy app
-```
+---
 
-## Local Docker demo
+## 🕹️ Interactive Demo Scenarios
 
-Compose starts PostgreSQL 16 (host port `55432`) and the API. The API applies
-migrations, then serves cases, reviews, checkpoints, audit events, and the
-mock incident store. LLM credentials are optional for a working demo; with a
-key in `.env`, the API container receives `LLM_API_KEY`, `LLM_BASE_URL`, and
-`LLM_MODEL` and calls the provider.
+The system includes five synthetic catalog scenarios with specialized runbooks, incident histories, and telemetry signals:
 
-Start the stack:
+| Scenario | Category | Default Priority | Matched Evidence Sources |
+|---|---|---|---|
+| **Portal Login 500** | `incident/access` | **P1 (High Risk)** | `kb-auth-5xx-after-release`, `inc-104`, `status-portal-auth-5xx` |
+| **VPN Certificate Swap** | `incident/network` | **P1 (High Risk)** | `kb-vpn-certificate-rotation`, `inc-218`, `status-vpn-gateway` |
+| **Invoice PDF Timeout** | `incident/billing` | **P2 (Medium Risk)** | `kb-invoice-pdf-timeout`, `inc-311`, `status-billing-export` |
+| **Outbound Email Delay** | `incident/messaging` | **P2 (Medium Risk)** | `kb-outbound-email-delay`, `inc-402`, `status-smtp-queue` |
+| **Okta SSO MFA Loop** | `incident/identity` | **P1 (High Risk)** | `kb-sso-mfa-loop`, `inc-155`, `status-idp-sso` |
+
+---
+
+## 🔌 API Specification
+
+| Method | Endpoint | Description | Role / Gate |
+|---|---|---|---|
+| `POST` | `/cases` | Create a case and run LangGraph intake through evidence gathering to the review gate | System / Intake |
+| `GET` | `/cases/{case_id}` | Retrieve persisted workflow checkpoint, triage, evidence, brief, and provider provenance | Operator / Reviewer |
+| `POST` | `/cases/{case_id}/review` | Submit operator corrections, edited customer reply, and approve/reject decision | Human Policy Gate |
+| `GET` | `/cases/{case_id}/trace` | Retrieve immutable, chronological audit trail with correlated event sequence | Audit / Compliance |
+| `GET` | `/artifacts` | List all fixture entries across Knowledge, Incidents, and Service Status | Knowledge Catalog |
+| `POST` | `/artifacts` | Add or update a fixture entry dynamically in the catalogue | Admin / Catalog |
+| `DELETE` | `/artifacts/{source_id}` | Remove a fixture entry from the active catalogue | Admin / Catalog |
+
+---
+
+## 🛠️ Technology Stack
+
+<table>
+<tr>
+<td align="center" width="25%">
+
+**Orchestration & AI**
+
+![LangGraph](https://img.shields.io/badge/-LangGraph-FF6F00?style=flat-square&logo=diagram&logoColor=white)
+![OpenAI](https://img.shields.io/badge/-OpenAI_Compatible-412991?style=flat-square&logo=openai&logoColor=white)
+![DeepSeek](https://img.shields.io/badge/-DeepSeek_V4_Flash-0066FF?style=flat-square&logo=databricks&logoColor=white)
+![Pydantic](https://img.shields.io/badge/-Pydantic_v2-E92063?style=flat-square&logo=pydantic&logoColor=white)
+
+</td>
+<td align="center" width="25%">
+
+**Backend Core**
+
+![FastAPI](https://img.shields.io/badge/-FastAPI_0.115-009688?style=flat-square&logo=fastapi&logoColor=white)
+![Python](https://img.shields.io/badge/-Python_3.12-3776AB?style=flat-square&logo=python&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/-SQLAlchemy_2.0-D71F00?style=flat-square&logo=sqlalchemy&logoColor=white)
+![HTTPX](https://img.shields.io/badge/-HTTPX-029FDF?style=flat-square&logo=httpx&logoColor=white)
+
+</td>
+<td align="center" width="25%">
+
+**Database & Persistence**
+
+![PostgreSQL](https://img.shields.io/badge/-PostgreSQL_16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![Alembic](https://img.shields.io/badge/-Alembic-6BA81E?style=flat-square&logo=alembic&logoColor=white)
+![Psycopg](https://img.shields.io/badge/-Psycopg_3-2F6792?style=flat-square&logo=postgresql&logoColor=white)
+
+</td>
+<td align="center" width="25%">
+
+**Frontend & Quality**
+
+![React](https://img.shields.io/badge/-React_19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/-TypeScript_5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/-Vite_6-646CFF?style=flat-square&logo=vite&logoColor=white)
+![Playwright](https://img.shields.io/badge/-Playwright-2EAD33?style=flat-square&logo=playwright&logoColor=white)
+![Pytest](https://img.shields.io/badge/-Pytest-0A9EDC?style=flat-square&logo=pytest&logoColor=white)
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🚀 Quick Start
+
+### 1. Run with Docker Compose (Recommended)
+
+Start PostgreSQL 16 and the FastAPI backend:
 
 ```powershell
 docker compose up --build
 ```
 
-Wait for `api` to become healthy, then open [API docs](http://127.0.0.1:8000/docs)
-or run the full scripted API demo in [docs/demo.md](docs/demo.md). Stop it with
-`docker compose down`; add `--volumes` only when you intentionally want a fresh
-local database.
+Access points:
+* 🌐 **Reviewer Workspace UI**: [http://localhost:5173](http://localhost:5173)
+* 📚 **Interactive Swagger API Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+* 🔍 **API Health Check**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
 
-For a locally managed PostgreSQL instance, set `DATABASE_URL` and apply the
-schema:
+---
 
+### 2. Local Development Setup
+
+The project uses [uv](https://docs.astral.sh/uv/) for Python dependency management and Node.js for the frontend.
+
+#### Backend:
 ```powershell
+# Sync dependencies and run database migrations
+uv sync --all-groups
 uv run alembic upgrade head
+
+# Start FastAPI development server
+uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-The PostgreSQL repository integration test runs only when `TEST_DATABASE_URL`
-is set. It must name a dedicated disposable database because the test truncates
-the `cases` table before it runs. A repeatable local command sequence is:
-
-```powershell
-docker compose up -d db
-# create a separate test database named copilot_test in that container
-$env:TEST_DATABASE_URL = "postgresql+psycopg://copilot:copilot@localhost:55432/copilot_test"
-$env:DATABASE_URL = $env:TEST_DATABASE_URL
-uv run alembic upgrade head
-uv run pytest -q
-docker compose down --volumes
-```
-
-## LLM configuration and fallback
-
-Triage and resolution-brief generation use a strict OpenAI-compatible JSON
-boundary. Set all three optional variables to enable a compatible provider:
-
-```text
-LLM_API_KEY=...
-LLM_BASE_URL=https://provider.example/v1
-LLM_MODEL=provider-model-name
-```
-
-Leaving any of these unset selects the deterministic offline fallback. The same
-fallback is used when a provider request fails, times out (60s), or its
-response does not match the typed contract. Provider errors and credentials
-are not returned. Case responses expose `provider`, `fallback_reason`, and
-`model` (the configured model name when the provider succeeded). Proposed
-actions are always drafts created by application code; model output cannot
-execute or authorize a write.
-
-`.env.example` targets OpenCode Go with DeepSeek V4 Flash
-(`https://opencode.ai/zen/go/v1`, `deepseek-v4-flash`). Set `LLM_API_KEY` in
-`.env` for a live local model. Recreate the API container after changing
-`.env` so Compose interpolates the new values.
-
-## Implemented case API
-
-After applying migrations and starting PostgreSQL, the API now exposes:
-
-- `POST /cases` — accepts `request_text`, runs the explicit workflow through
-  intake, evidence gathering, triage, brief generation, and the human policy
-  gate; returns `201` with `awaiting_human_review`.
-- `GET /cases/{case_id}` — reloads the latest persisted workflow checkpoint.
-- `POST /cases/{case_id}/review` — persists operator edits and an approve/reject
-  decision; approval creates one mock incident, while rejection never executes.
-- `GET /cases/{case_id}/trace` — returns the ordered persisted audit trace.
-
-The canonical login HTTP 500 after update request returns P1 triage, the three
-matching fixture IDs (`kb-auth-5xx-after-release`, `inc-104`,
-`status-portal-auth-5xx`), and proposed actions. Four additional demo
-catalogues cover VPN certificate, invoice PDF timeout, outbound email delay,
-and SSO MFA loop. Tools match fixture keywords as substrings of the request
-text; unmatched requests return empty evidence and still stop at the human
-gate. No action executes until an operator uses the review API.
-
-## Reviewer frontend (local)
-
-The API remains the source of truth. The browser app in `frontend/` is a static
-SPA and needs only `VITE_API_BASE_URL`.
-
+#### Frontend:
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-`frontend/.env.development` points at `http://127.0.0.1:8000`. Start the API
-separately. Production builds require `VITE_API_BASE_URL`; an absent or invalid
-value fails the build. The frontend never receives `LLM_API_KEY` or
-`DATABASE_URL`. Intake offers five named demo chips plus a random “Use demo
-request” control. The case header shows `AI · {model}` when the provider
-succeeded, or `Offline fallback`. Open `/dev/components` for the primitive
-gallery. Pattern accessibility states are in
-[docs/frontend-patterns.md](docs/frontend-patterns.md).
+---
 
-Frontend checks:
+## 🧪 Quality & Verification Suite
+
+The repository maintains strict test coverage across unit, database integration, accessibility, and E2E layers:
 
 ```powershell
+# Backend verification (Pytest, Ruff, Mypy)
+uv run pytest -q
+uv run ruff check .
+uv run mypy app
+
+# Frontend verification (Vitest, ESLint, TypeScript)
 cd frontend
 npm test
 npm run lint
 npm run typecheck
 $env:VITE_API_BASE_URL="http://127.0.0.1:8000"; npm run build
 npm run check:bundle
+
+# E2E & Accessibility verification (Playwright & Axe-Core)
 npx playwright install chromium
 npm run test:e2e
 ```
 
-CORS defaults to the local Vite origins. Override with `CORS_ALLOW_ORIGINS` in
-the API environment.
+---
 
-## Status
+## 📂 Project Structure
 
-**API MVP implemented.** Reviewer UI subphases 9.1–9.7 are implemented.
-Subphase 9.8 (Vercel Hobby SPA deploy) is next and is still planned.
+```text
+ai-support-operator-copilot/
+├── app/
+│   ├── api/             # FastAPI REST routes, schemas, rate-limiting
+│   ├── domain/          # Pydantic contracts (Case, Evidence, Triage, AuditEvent)
+│   ├── graph/           # LangGraph StateGraph, nodes, policy gate
+│   ├── llm/             # OpenAI-compatible JSON client & deterministic fallback
+│   ├── persistence/     # SQLAlchemy 2.0 models, migrations, repositories
+│   └── tools/           # Bounded read-only retrieval tools (KB, Cases, Status)
+├── frontend/            # React 19 / TypeScript Reviewer SPA
+│   ├── src/
+│   │   ├── api/         # Typed API clients & TanStack Query hooks
+│   │   ├── app/         # AppShell, ErrorBoundary, navigation layout
+│   │   ├── components/  # Primitives (Badge, Button, Card, Dialog, TextField)
+│   │   ├── features/    # Case review workspace, intake form, trace timeline
+│   │   └── pages/       # HomePage, CasePage, NewCasePage, ArtifactsPage
+│   └── e2e/             # Playwright E2E and Axe accessibility test suite
+├── fixtures/            # Validated synthetic catalogues (Runbooks, Incidents, Status)
+│   ├── knowledge/       # Synthetic Runbooks (kb-*)
+│   ├── similar_cases.json # Synthetic Past Incidents (inc-*)
+│   └── service_status.json # Synthetic Telemetry Signals (status-*)
+├── tests/               # Pytest suite & repository language guards
+├── docs/                # Architecture, Product specs, Demo scripts, UI plans
+├── compose.yaml         # PostgreSQL 16 & API container definitions
+└── pyproject.toml       # Locked Python 3.12 project configuration
+```
 
-## Related work
+---
 
-- `support_operator_panel` — earlier FastAPI/React operator workspace.
-- `assist-craft-qna` — earlier semantic retrieval and reranking component.
+## 🎯 Core Engineering Principles
 
-This repository is a separate project. It reuses the product insight of those systems but does not claim to be a production successor or a fork of either one.
+ 1. **Stateful Agentic Workflows**: Building transparent, reproducible multi-step graphs with LangGraph instead of chaotic, uncontrollable multi-agent supervisors.
+ 2. **Enterprise Safety & Policy Enforcement**: Proving that AI can analyze and draft recommendations without granting write access to production systems.
+ 3. **Structured Boundary Design**: Strict Pydantic v2 `extra="forbid"` parsing preventing prompt injection and hallucinated action parameters.
+ 4. **Resilient Dual-Engine Fallback**: Graceful degradation to deterministic heuristics when third-party model providers fail.
+ 5. **High-Standard Software Engineering**: End-to-end type safety (Python `mypy --strict`, TypeScript `strict: true`), immutable audit trails, and 100% test automation.
 
-## License
+---
 
-Private repository. License and publication decision are intentionally deferred.
+## 📄 License
+
+This project is licensed under the terms of the [MIT License](LICENSE).

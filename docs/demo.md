@@ -88,7 +88,7 @@ all actions are rejected, and the audit trail explains the decision.
 
 The test suite must cover each proof point in this script. A manually observed API run is supplementary evidence, never a substitute for tests.
 
-## Portfolio narrative
+## Executive summary
 
 > AI Support Operator Copilot turns incomplete support messages into a case with explicit facts, evidence, uncertainty and a proposed next step. A LangGraph workflow invokes bounded read-only tools, then pauses for a human to edit or approve the result. Write actions are deterministic and structurally blocked until that approval is persisted; every step is visible in an audit trail.
 
