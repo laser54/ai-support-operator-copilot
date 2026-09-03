@@ -34,13 +34,13 @@ services:
       - traefik
     labels:
       - traefik.enable=true
-      - traefik.docker.network=rag-stack_internal
+      - traefik.docker.network=coolify
       - traefik.http.routers.ai-support-http.rule=Host(`api.copilot.larin.work`)
-      - traefik.http.routers.ai-support-http.entrypoints=web
-      - traefik.http.routers.ai-support-http.middlewares=to-https@docker
+      - traefik.http.routers.ai-support-http.entrypoints=http
+      - traefik.http.routers.ai-support-http.middlewares=redirect-to-https@docker
       - traefik.http.routers.ai-support.rule=Host(`api.copilot.larin.work`)
-      - traefik.http.routers.ai-support.entrypoints=websecure
-      - traefik.http.routers.ai-support.tls.certresolver=le
+      - traefik.http.routers.ai-support.entrypoints=https
+      - traefik.http.routers.ai-support.tls.certresolver=letsencrypt
       - traefik.http.services.ai-support.loadbalancer.server.port=8000
 
 volumes:
@@ -49,4 +49,4 @@ volumes:
 networks:
   traefik:
     external: true
-    name: rag-stack_internal
+    name: coolify
