@@ -204,6 +204,7 @@ class Case(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     raw_request: str = Field(min_length=1, max_length=10_000)
     status: CaseStatus = CaseStatus.RECEIVED
+    version: int = Field(default=1, ge=1)
     created_at: datetime
     updated_at: datetime
     requester_facts: list[Annotated[str, Field(min_length=1, max_length=1_000)]] = Field(

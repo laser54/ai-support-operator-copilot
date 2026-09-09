@@ -18,6 +18,7 @@ export const sampleCase: CaseResponse = {
   case_id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
   request_text: DEMO_REQUEST,
   status: "awaiting_human_review",
+  version: 1,
   provider: "deterministic_fallback",
   fallback_reason: "provider_not_configured",
   model: null,

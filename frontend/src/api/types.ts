@@ -81,6 +81,7 @@ export type ReviewRecord = {
 export type CaseResponse = {
   case_id: string;
   status: CaseStatus;
+  version: number;
   request_text: string;
   triage: Triage;
   evidence: Evidence[];
@@ -100,6 +101,8 @@ export type ReviewRequest = {
   edits?: ReviewEdits;
   decision: ReviewDecision;
   comment?: string | null;
+  expected_version: number;
+  idempotency_key: string;
 };
 
 export type AuditEvent = {

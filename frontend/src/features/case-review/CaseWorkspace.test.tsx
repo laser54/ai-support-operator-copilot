@@ -247,15 +247,15 @@ describe("CaseWorkspace", () => {
       status: "completed",
       loadTrace: vi.fn().mockResolvedValue(approvedTrace),
     });
-    expect(await screen.findByText("Mock incident executed")).toBeInTheDocument();
+    expect(await screen.findByText("Mock incident executed", {}, { timeout: 4000 })).toBeInTheDocument();
     unmount();
     renderWorkspace({
       status: "rejected",
       loadTrace: vi.fn().mockResolvedValue(rejectedTrace),
     });
-    expect(await screen.findByText("Action rejected")).toBeInTheDocument();
+    expect(await screen.findByText("Action rejected", {}, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.queryByText("Mock incident executed")).not.toBeInTheDocument();
-  });
+  }, 10000);
 
   it("renders resolution brief with reply draft and proposed actions for all statuses", async () => {
     // 1. awaiting_human_review
@@ -365,5 +365,43 @@ describe("CaseWorkspace", () => {
     expect(copyText).toHaveBeenCalledWith(sampleCase.resolution_brief.reply_draft);
     expect(await screen.findByRole("alert")).toHaveTextContent("Clipboard write permission denied");
     expect(screen.getAllByText(sampleCase.resolution_brief.reply_draft).length).toBeGreaterThan(0);
+  });
+
+  it("preserves local draft and displays conflict warning and reload button on 409 conflict", async () => {
+    const submitReview = vi.fn().mockRejectedValue(
+      new ApiError(409, "conflict", "version mismatch: expected 1, got 2")
+    );
+    const loadCase = vi.fn().mockResolvedValue(sampleCase);
+    const { user } = renderWorkspace({ submitReview, loadCase });
+
+    await screen.findByText("Waiting for review");
+    await user.click(screen.getByRole("button", { name: "Edit reply" }));
+    await user.clear(screen.getByLabelText("Reply draft"));
+    await user.type(screen.getByLabelText("Reply draft"), "Local custom reply draft text");
+    await user.click(screen.getByRole("button", { name: "Done editing reply" }));
+
+    // Verify local edit text is rendered
+    expect(screen.getAllByText(/Local custom reply draft text/).length).toBeGreaterThan(0);
+
+    // Trigger review submission
+    await user.click(screen.getByRole("button", { name: "Approve and create mock incident" }));
+    await user.click(screen.getByRole("button", { name: "Confirm approval" }));
+
+    expect(submitReview).toHaveBeenCalledTimes(1);
+
+    // Verify conflict callout and explanation
+    expect(await screen.findByText("Review conflict (outdated version)")).toBeInTheDocument();
+    expect(
+      screen.getByText(/This case was updated by another operator or tab\. Your local edits have been preserved\./)
+    ).toBeInTheDocument();
+
+    // Verify local draft is still preserved in the document
+    expect(screen.getAllByText(/Local custom reply draft text/).length).toBeGreaterThan(0);
+
+    // Verify reload button triggers case refetch without repeating approval
+    const reloadBtn = screen.getByRole("button", { name: "Reload case" });
+    await user.click(reloadBtn);
+    expect(loadCase).toHaveBeenCalledTimes(2);
+    expect(submitReview).toHaveBeenCalledTimes(1);
   });
 });

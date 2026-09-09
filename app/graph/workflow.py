@@ -19,6 +19,7 @@ class WorkflowState(TypedDict, total=False):
     case_id: str
     request_text: str
     status: str
+    version: int
     evidence: list[dict[str, object]]
     triage: dict[str, object]
     resolution_brief: dict[str, object]
@@ -57,7 +58,7 @@ class CaseWorkflow:
     def _intake(self, state: WorkflowState) -> WorkflowState:
         case = self._repository.create(state["request_text"])
         self._add_event(case.id, "case_created", "intake", {"request": state["request_text"]})
-        return {"case_id": str(case.id), "status": "received"}
+        return {"case_id": str(case.id), "status": "received", "version": 1}
 
     def _gather_evidence(self, state: WorkflowState) -> WorkflowState:
         case_id = UUID(state["case_id"])

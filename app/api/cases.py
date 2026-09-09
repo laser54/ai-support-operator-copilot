@@ -15,7 +15,7 @@ from app.llm.service import TriageAndBriefService
 from app.persistence.database import get_session
 from app.persistence.repositories import CaseRepository
 from app.rate_limit import IntakeRateLimiter, client_id_from_request
-from app.review import ReviewService
+from app.review import CaseNotFoundError, ReviewConflictError, ReviewService
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -35,6 +35,7 @@ class CaseResponse(BaseModel):
 
     case_id: UUID
     status: str
+    version: int = Field(default=1, ge=1, description="Current monotonic case state version")
     request_text: str
     triage: dict[str, object]
     evidence: list[dict[str, object]]
@@ -46,7 +47,7 @@ class CaseResponse(BaseModel):
 
 
 class ReviewRequest(BaseModel):
-    """Human correction and approval/rejection decision."""
+    """Human correction and approval/rejection decision with optimistic concurrency control."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -54,6 +55,15 @@ class ReviewRequest(BaseModel):
     edits: ReviewEdits = Field(default_factory=ReviewEdits)
     decision: ReviewDecision
     comment: str | None = Field(default=None, max_length=2_000)
+    expected_version: int = Field(
+        ge=1,
+        description="Optimistic locking version expected by client. Mismatch returns 409.",
+    )
+    idempotency_key: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Unique client-provided key ensuring idempotent review processing.",
+    )
 
 
 class TraceResponse(BaseModel):
@@ -67,6 +77,7 @@ def _response(state: dict[str, object]) -> CaseResponse:
     return CaseResponse(
         case_id=UUID(str(state["case_id"])),
         status=str(state["status"]),
+        version=int(str(state.get("version", 1))),
         request_text=str(state["request_text"]),
         triage=cast(dict[str, object], state["triage"]),
         evidence=cast(list[dict[str, object]], state["evidence"]),
@@ -117,7 +128,16 @@ def review_case(
         reviewed_at=datetime.now(UTC),
     )
     try:
-        state = ReviewService(CaseRepository(session)).submit(case_id, review)
+        state = ReviewService(CaseRepository(session)).submit(
+            case_id,
+            review,
+            expected_version=payload.expected_version,
+            idempotency_key=payload.idempotency_key,
+        )
+    except CaseNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except ReviewConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
     return _response(state)
