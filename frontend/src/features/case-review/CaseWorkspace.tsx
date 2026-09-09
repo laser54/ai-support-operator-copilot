@@ -1,5 +1,18 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, BookOpen, MessageSquareQuote, Pencil, PenLine, Sparkles, User } from "lucide-react";
+import {
+  AlertCircle,
+  BookOpen,
+  Check,
+  Copy,
+  MessageSquareQuote,
+  Pencil,
+  PenLine,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  User,
+} from "lucide-react";
 import { Link, useParams } from "react-router";
 
 import { ApiError } from "../../api/client";
@@ -34,6 +47,8 @@ function scrollToSection(id: string) {
 
 export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: Loaders) {
   const { caseId = "" } = useParams();
+  const [copyReplyState, setCopyReplyState] = useState<"idle" | "success" | "error">("idle");
+  const [copyReplyError, setCopyReplyError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const caseQuery = useQuery({
     queryKey: queryKeys.case(caseId),
@@ -80,9 +95,29 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
   }
 
   const caseData = caseQuery.data;
+
   async function copy(value: string) {
     await (copyText ?? ((text: string) => navigator.clipboard.writeText(text)))(value);
   }
+
+  async function handleCopyReply(value: string) {
+    try {
+      await (copyText ?? ((text: string) => navigator.clipboard.writeText(text)))(value);
+      setCopyReplyState("success");
+      setCopyReplyError(null);
+      setTimeout(() => {
+        setCopyReplyState((current) => (current === "success" ? "idle" : current));
+      }, 3000);
+    } catch (error) {
+      setCopyReplyState("error");
+      setCopyReplyError(
+        error instanceof Error
+          ? error.message
+          : "Could not copy automatically. Please select and copy text manually.",
+      );
+    }
+  }
+
   const latestEvent = traceQuery.data?.events.at(-1);
   const events = traceQuery.data?.events ?? [];
   const policyEvent = firstEventOfType(events, "human_review_requested");
@@ -237,13 +272,51 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
             })}
           </section>
 
-          <Card as="section" id="brief" tabIndex={-1} tone="ai">
-            <div className={styles.cardBannerAi}>
-              <Sparkles size={12} aria-hidden="true" />
-              <span>AI Generated Brief</span>
+          <Card
+            as="section"
+            id="brief"
+            tabIndex={-1}
+            tone={caseData.status === "completed" ? "human" : caseData.status === "rejected" ? "request" : "ai"}
+          >
+            <div
+              className={
+                caseData.status === "completed"
+                  ? styles.cardBannerApproved
+                  : caseData.status === "rejected"
+                    ? styles.cardBannerRejected
+                    : styles.cardBannerAi
+              }
+            >
+              {caseData.status === "completed" ? (
+                <>
+                  <ShieldCheck size={12} aria-hidden="true" />
+                  <span>Human Approved Resolution</span>
+                </>
+              ) : caseData.status === "rejected" ? (
+                <>
+                  <ShieldAlert size={12} aria-hidden="true" />
+                  <span>Proposal Rejected · Actions Blocked</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={12} aria-hidden="true" />
+                  <span>AI Proposed Resolution Brief</span>
+                </>
+              )}
             </div>
             <div className={styles.sectionHeaderWithAction}>
-              <SectionHeading icon={PenLine} mark="AI draft">
+              <SectionHeading
+                icon={PenLine}
+                mark={
+                  caseData.status === "completed"
+                    ? caseData.review?.edits?.reply_draft
+                      ? "Operator edited & approved"
+                      : "Operator approved"
+                    : caseData.status === "rejected"
+                      ? "Proposal rejected"
+                      : "AI draft"
+                }
+              >
                 Resolution brief
               </SectionHeading>
               {caseData.status === "awaiting_human_review" ? (
@@ -257,7 +330,102 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
                 </Button>
               ) : null}
             </div>
-            <p>Edit the customer-facing reply in Human review before you decide.</p>
+
+            <div className={styles.briefContent}>
+              <div className={styles.replySection}>
+                <h3 className={styles.briefSubheading}>Customer-facing reply</h3>
+                {caseData.resolution_brief.reply_draft?.trim() ? (
+                  <>
+                    <blockquote className={styles.replyBlockquote}>
+                      {caseData.resolution_brief.reply_draft}
+                    </blockquote>
+                    <div className={styles.replyActionsRow}>
+                      <Button
+                        variant="secondary"
+                        onClick={() => void handleCopyReply(caseData.resolution_brief.reply_draft)}
+                        aria-label="Copy customer reply"
+                      >
+                        {copyReplyState === "success" ? (
+                          <Check size={13} aria-hidden="true" />
+                        ) : (
+                          <Copy size={13} aria-hidden="true" />
+                        )}
+                        Copy reply
+                      </Button>
+                      {copyReplyState === "success" ? (
+                        <span role="status" className={styles.copyStatusSuccess}>
+                          Reply copied to clipboard
+                        </span>
+                      ) : null}
+                      {copyReplyState === "error" ? (
+                        <span role="alert" className={styles.copyStatusError}>
+                          {copyReplyError || "Could not copy automatically. Please select and copy text manually."}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className={styles.disclaimerText}>
+                      Decision on proposed reply — not automatically sent to customer.
+                    </p>
+                  </>
+                ) : (
+                  <p className={styles.emptyText}>No customer reply recorded for this case.</p>
+                )}
+              </div>
+
+              <div className={styles.actionsSection}>
+                <h3 className={styles.briefSubheading}>Proposed actions</h3>
+                {caseData.resolution_brief.proposed_actions.length > 0 ? (
+                  <div className={styles.proposedActionsList}>
+                    {caseData.resolution_brief.proposed_actions.map((action) => (
+                      <div key={action.id} className={styles.actionCard}>
+                        <div className={styles.actionCardHeader}>
+                          <span className={styles.actionKind}>{action.kind}</span>
+                          <div className={styles.actionBadges}>
+                            <Badge tone={action.risk === "high" ? "warning" : "neutral"}>
+                              {action.risk} risk
+                            </Badge>
+                            <Badge tone={action.approval_required ? "review" : "neutral"}>
+                              {action.approval_required ? "Approval required" : "No approval"}
+                            </Badge>
+                            <Badge
+                              tone={
+                                action.state === "executed"
+                                  ? "success"
+                                  : action.state === "rejected"
+                                    ? "danger"
+                                    : "review"
+                              }
+                            >
+                              {action.state}
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className={styles.actionPreview}>{action.payload_preview}</p>
+                        {action.execution_result ? (
+                          <div className={styles.mockExecutionBox}>
+                            <p className={styles.mockRefText}>
+                              Mock reference: <strong>{action.execution_result.external_reference ?? "unavailable"}</strong>
+                              {action.execution_result.executed_at
+                                ? ` · recorded at ${action.execution_result.executed_at}`
+                                : null}
+                            </p>
+                            <p className={styles.mockDisclaimer}>
+                              Mock execution only. No real external incident was created.
+                            </p>
+                          </div>
+                        ) : action.state === "rejected" ? (
+                          <p className={styles.rejectedDisclaimer}>
+                            Action blocked by policy gate. No incident was created.
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles.emptyText}>No actions were proposed.</p>
+                )}
+              </div>
+            </div>
           </Card>
 
           <section id="outcome" tabIndex={-1}>

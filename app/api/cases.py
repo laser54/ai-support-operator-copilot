@@ -42,6 +42,7 @@ class CaseResponse(BaseModel):
     provider: str
     fallback_reason: str | None = None
     model: str | None = None
+    review: dict[str, object] | None = None
 
 
 class ReviewRequest(BaseModel):
@@ -73,6 +74,7 @@ def _response(state: dict[str, object]) -> CaseResponse:
         provider=str(state["provider"]),
         fallback_reason=str(state["fallback_reason"]) if state.get("fallback_reason") else None,
         model=str(state["model"]) if state.get("model") else None,
+        review=cast(dict[str, object], state["review"]) if state.get("review") else None,
     )
 
 

@@ -10,7 +10,8 @@ async function createDemoCase(page: Page) {
   await expect(page.getByRole("heading", { name: "Case workspace" })).toBeVisible();
 }
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ context, page }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await installMockApi(page);
 });
 
@@ -43,6 +44,9 @@ test("creates, inspects, edits, approves, and keeps a single mock incident", asy
   await page.getByRole("button", { name: "Refresh" }).click();
   await expect(page.getByText(/MOCK-1/)).toBeVisible();
   await expect(page.getByText("P2", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Engineering is investigating.")).toBeVisible();
+  await page.getByRole("button", { name: "Copy customer reply" }).click();
+  await expect(page.getByRole("status")).toContainText("Reply copied to clipboard");
 
   await page.locator("#trace").getByText(/Audit trail/).click();
   await expect(page.getByText("Mock incident executed")).toBeVisible();

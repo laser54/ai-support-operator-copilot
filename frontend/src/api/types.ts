@@ -63,6 +63,21 @@ export type ResolutionBrief = {
   reply_draft: string;
 };
 
+export type ReviewEdits = {
+  priority?: Priority;
+  reply_draft?: string;
+  requester_facts?: string[];
+};
+
+export type ReviewRecord = {
+  id: string;
+  actor: string;
+  decision: ReviewDecision;
+  comment?: string | null;
+  reviewed_at: string;
+  edits?: ReviewEdits;
+};
+
 export type CaseResponse = {
   case_id: string;
   status: CaseStatus;
@@ -73,16 +88,11 @@ export type CaseResponse = {
   provider: string;
   fallback_reason: string | null;
   model: string | null;
+  review?: ReviewRecord | null;
 };
 
 export type CreateCaseRequest = {
   request_text: string;
-};
-
-export type ReviewEdits = {
-  priority?: Priority;
-  reply_draft?: string;
-  requester_facts?: string[];
 };
 
 export type ReviewRequest = {
