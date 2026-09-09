@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from typing import Protocol
+from uuid import uuid4
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -69,7 +70,10 @@ class OpenAICompatibleClient:
         with httpx.Client(transport=self._transport, timeout=60.0) as client:
             response = client.post(
                 f"{self._base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {self._api_key}"},
+                headers={
+                    "Authorization": f"Bearer {self._api_key}",
+                    "x-opencode-session": str(uuid4()),
+                },
                 json={
                     "model": self._model,
                     "response_format": {"type": "json_object"},
