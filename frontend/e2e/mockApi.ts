@@ -1,6 +1,14 @@
 import type { Page } from "@playwright/test";
 
-import type { AuditEvent, CaseResponse, ReviewRequest, TraceResponse } from "../src/api/types";
+import type {
+  AuditEvent,
+  CaseQueueItem,
+  CaseQueueResponse,
+  CaseResponse,
+  CreateCaseRequest,
+  ReviewRequest,
+  TraceResponse,
+} from "../src/api/types";
 import { sampleCase, sampleTrace } from "../src/features/case-review/fixtures";
 
 const API = "http://127.0.0.1:8000";
@@ -14,6 +22,8 @@ const CORS = {
 type Store = {
   case: CaseResponse;
   trace: TraceResponse;
+  created_at: string;
+  updated_at: string;
 };
 
 function json(status: number, body: unknown) {
@@ -88,6 +98,7 @@ function applyReview(store: Store, body: ReviewRequest): CaseResponse {
   );
   addEvent(store, "action_approved", "policy_gate", summary);
   addEvent(store, "action_executed", "execute_mock_incident", summary);
+  store.updated_at = new Date().toISOString();
   return store.case;
 }
 
@@ -105,16 +116,73 @@ export async function installMockApi(page: Page) {
       return;
     }
 
+    if (method === "GET" && path === "/cases") {
+      const status = url.searchParams.get("status");
+      const priority = url.searchParams.get("priority");
+      const q = url.searchParams.get("q")?.toLowerCase();
+      const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
+      const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get("page_size")) || 10));
+
+      let allItems: CaseQueueItem[] = Array.from(cases.values()).map((store) => ({
+        case_id: store.case.case_id,
+        status: store.case.status,
+        priority: store.case.triage.priority,
+        risk: store.case.triage.risk,
+        request_text: store.case.request_text,
+        version: store.case.version ?? 1,
+        created_at: store.created_at,
+        updated_at: store.updated_at,
+      }));
+
+      if (status && status !== "all") {
+        allItems = allItems.filter((item) => item.status === status);
+      }
+      if (priority) {
+        allItems = allItems.filter((item) => item.priority === priority);
+      }
+      if (q) {
+        allItems = allItems.filter(
+          (item) => item.case_id.toLowerCase() === q || item.request_text.toLowerCase().includes(q),
+        );
+      }
+
+      allItems.sort((a, b) => {
+        const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return b.case_id.localeCompare(a.case_id);
+      });
+
+      const total = allItems.length;
+      const totalPages = total > 0 ? Math.ceil(total / pageSize) : 0;
+      const items = allItems.slice((page - 1) * pageSize, page * pageSize);
+
+      await route.fulfill(
+        json(200, {
+          items,
+          total,
+          page,
+          page_size: pageSize,
+          total_pages: totalPages,
+        } satisfies CaseQueueResponse),
+      );
+      return;
+    }
+
     if (method === "POST" && path === "/cases") {
       const id = crypto.randomUUID();
+      const postBody = request.postDataJSON() as CreateCaseRequest | null;
       const created = clone(sampleCase);
       created.case_id = id;
+      if (postBody?.request_text) {
+        created.request_text = postBody.request_text;
+      }
       const trace = clone(sampleTrace);
       trace.case_id = id;
       for (const event of trace.events) {
         event.case_id = id;
       }
-      cases.set(id, { case: created, trace });
+      const now = new Date().toISOString();
+      cases.set(id, { case: created, trace, created_at: now, updated_at: now });
       await route.fulfill(json(201, created));
       return;
     }

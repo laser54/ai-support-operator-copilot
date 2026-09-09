@@ -5,6 +5,7 @@ import { ArtifactsPage } from "../pages/ArtifactsPage";
 import { CasePage } from "../pages/CasePage";
 import { HomePage } from "../pages/HomePage";
 import { NewCasePage } from "../pages/NewCasePage";
+import { QueuePage } from "../pages/QueuePage";
 import { AppShell } from "./AppShell";
 import { ErrorBoundary } from "./ErrorBoundary";
 
@@ -24,6 +25,7 @@ export function App() {
         <AppShell>
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/cases" element={<QueuePage />} />
             <Route path="/artifacts" element={<ArtifactsPage />} />
             <Route path="/cases/new" element={<NewCasePage />} />
             <Route path="/cases/:caseId" element={<CasePage />} />

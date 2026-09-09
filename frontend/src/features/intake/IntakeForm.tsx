@@ -1,8 +1,9 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router";
 
+import { queryKeys } from "../../api/queryKeys";
 import { getApiBaseUrl, getCasesApi } from "../../api/runtime";
 import type { CaseResponse } from "../../api/types";
 import { TaskRows } from "../../components/patterns/TaskRows";
@@ -61,9 +62,11 @@ export function IntakeForm({
       }
     }
   }, [scenarioParam, setValue]);
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (requestText: string) => submitCase(requestText),
     onSuccess: (created) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.casesAll() });
       void navigate(`/cases/${created.case_id}`);
     },
   });

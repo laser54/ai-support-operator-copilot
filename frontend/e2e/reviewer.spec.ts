@@ -118,10 +118,65 @@ test("remains usable at mobile, tablet, and desktop widths", async ({ page }) =>
   }
 });
 
+test("supports cases queue search, filters, review, and status update", async ({ page }) => {
+  // 1. Create first case
+  await page.goto("/cases/new", { waitUntil: "domcontentloaded" });
+  await page.getByLabel("Describe the support issue").fill("Portal access 500 error for sales department");
+  await page.getByRole("button", { name: "Analyze request" }).click();
+  await expect(page.getByRole("heading", { name: "Case workspace" })).toBeVisible();
+
+  // 2. Create second case
+  await page.goto("/cases/new", { waitUntil: "domcontentloaded" });
+  await page.getByLabel("Describe the support issue").fill("VPN gateway certificate expired");
+  await page.getByRole("button", { name: "Analyze request" }).click();
+  await expect(page.getByRole("heading", { name: "Case workspace" })).toBeVisible();
+
+  // 3. Navigate to Cases Queue
+  await page.goto("/cases", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Cases Queue" })).toBeVisible();
+  await expect(page.getByText("Portal access 500 error for sales department")).toBeVisible();
+  await expect(page.getByText("VPN gateway certificate expired")).toBeVisible();
+
+  // 4. Filter / Search for the target case
+  const searchInput = page.getByRole("searchbox", { name: "Search cases by text or UUID" });
+  await searchInput.fill("VPN gateway");
+  await expect(page.getByText("VPN gateway certificate expired")).toBeVisible();
+  await expect(page.getByText("Portal access 500 error for sales department")).toHaveCount(0);
+
+  // 5. Open the target case workspace
+  await page.getByRole("link", { name: /Open case/ }).click();
+  await expect(page.getByRole("heading", { name: "Case workspace" })).toBeVisible();
+  await expect(page.getByText("Waiting for review")).toBeVisible();
+
+  // 6. Review and approve the proposal
+  await page.getByRole("button", { name: "Approve and create mock incident" }).click();
+  await page.getByRole("button", { name: "Confirm approval" }).click();
+  await expect(page.getByText("MOCK-1", { exact: true })).toBeVisible();
+
+  // 7. Return to queue via the Back to cases queue link
+  await page.getByRole("link", { name: "← Back to cases queue" }).click();
+  await expect(page.getByRole("heading", { name: "Cases Queue" })).toBeVisible();
+
+  // 8. In the queue, change status filter to Completed to see updated status
+  await page.getByRole("combobox", { name: "Filter by status" }).selectOption("completed");
+  await expect(page.getByText("VPN gateway certificate expired")).toBeVisible();
+  await expect(page.getByRole("feed", { name: "Cases list" }).getByText("Completed")).toBeVisible();
+
+  // 9. Verify 375px mobile viewport layout
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.getByRole("heading", { name: "Cases Queue" })).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Search cases by text or UUID" })).toBeVisible();
+});
+
 test("has no critical or serious accessibility findings on the demo path", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
   const home = await new AxeBuilder({ page }).analyze();
   expect(home.violations.filter((item) => item.impact === "critical" || item.impact === "serious")).toEqual(
+    [],
+  );
+  await page.goto("/cases", { waitUntil: "domcontentloaded" });
+  const queueAxe = await new AxeBuilder({ page }).analyze();
+  expect(queueAxe.violations.filter((item) => item.impact === "critical" || item.impact === "serious")).toEqual(
     [],
   );
   await page.goto("/cases/new", { waitUntil: "domcontentloaded" });
