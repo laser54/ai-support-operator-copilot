@@ -101,22 +101,31 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Configure restricted deploy key
+      - name: Trigger Coolify deployment on the current VPS
         env:
-          DEPLOY_SSH_KEY: ${{ secrets.AI_SUPPORT_VPS_DEPLOY_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ secrets.AI_SUPPORT_VPS_KNOWN_HOSTS }}
+          COOLIFY_DEPLOY_TOKEN: ${{ secrets.COOLIFY_DEPLOY_TOKEN }}
         run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
-          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
-      - name: Pull and activate the published revision
-        env:
-          GHCR_TOKEN: ${{ github.token }}
-        run: |
-          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/id_ed25519 \
-            -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
-            root@107.174.26.138 "deploy ${GITHUB_SHA}"
+          set -euo pipefail
+          response=$(curl --fail-with-body --retry 3 --silent --show-error \
+            --request POST \
+            --url 'https://coolify.larin.work/api/v1/deploy?uuid=s2lovlkkd5sdrfvyebmnkcav&force=false' \
+            --header "Authorization: Bearer ${COOLIFY_DEPLOY_TOKEN}")
+          deployment_uuid=$(printf '%s' "$response" | jq -r '.deployments[0].deployment_uuid')
+          test -n "$deployment_uuid" -a "$deployment_uuid" != null
+          echo "Coolify deployment queued: ${deployment_uuid}"
+          for attempt in $(seq 1 60); do
+            status=$(curl --fail-with-body --retry 2 --silent --show-error \
+              --url "https://coolify.larin.work/api/v1/deployments/${deployment_uuid}" \
+              --header "Authorization: Bearer ${COOLIFY_DEPLOY_TOKEN}" | jq -r '.status')
+            echo "Coolify deployment status: ${status}"
+            case "$status" in
+              finished) exit 0 ;;
+              failed|cancelled|error) exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo 'Coolify deployment timed out' >&2
+          exit 1
 
   deploy_frontend:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
