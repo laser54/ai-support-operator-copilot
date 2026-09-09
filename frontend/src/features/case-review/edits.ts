@@ -37,6 +37,7 @@ export function buildReviewRequest(
   local: LocalReview,
   decision: ReviewRequest["decision"],
   comment?: string,
+  idempotencyKey?: string,
 ): ReviewRequest {
   const edits: ReviewEdits = {};
   if (local.priority !== caseData.triage.priority) {
@@ -54,5 +55,11 @@ export function buildReviewRequest(
     edits,
     decision,
     comment: comment?.trim() ? comment.trim() : null,
+    expected_version: caseData.version ?? 1,
+    idempotency_key:
+      idempotencyKey ??
+      (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `review-${Date.now()}`),
   };
 }

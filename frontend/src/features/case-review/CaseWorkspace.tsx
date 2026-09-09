@@ -438,6 +438,7 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
               }
               policyTraceHref={policyEvent ? `#${eventAnchorId(policyEvent)}` : "#trace"}
               executionTraceHref={executionEvent ? `#${eventAnchorId(executionEvent)}` : "#trace"}
+              onReload={() => void caseQuery.refetch()}
               onSubmit={(body) => reviewMutation.mutate(body)}
             />
           </section>

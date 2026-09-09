@@ -20,6 +20,7 @@ def test_case_response_exposes_the_original_request_text() -> None:
     assert body.request_text == "portal login HTTP 500 after update"
     assert body.model is None
     assert body.case_id
+    assert body.version == 1
     assert body.review is None
 
 

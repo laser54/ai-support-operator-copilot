@@ -24,6 +24,7 @@ export function ReviewPanel({
   conflict = false,
   policyTraceHref = "#trace",
   executionTraceHref = "#trace",
+  onReload,
   onSubmit,
 }: {
   caseData: CaseResponse;
@@ -32,6 +33,7 @@ export function ReviewPanel({
   conflict?: boolean;
   policyTraceHref?: string;
   executionTraceHref?: string;
+  onReload?: () => void;
   onSubmit: (body: ReviewRequest) => void;
 }) {
   const [local, setLocal] = useState(() => localReviewFromCase(caseData, DEFAULT_REVIEW_ACTOR));
@@ -215,9 +217,26 @@ export function ReviewPanel({
         </p>
       </div>
       {error ? (
-        <Callout tone="danger" title="The review could not be saved">
+        <Callout
+          tone="danger"
+          title={conflict ? "Review conflict (outdated version)" : "The review could not be saved"}
+        >
           <p role="alert">{error}</p>
-          {conflict ? <p>Refresh the case, then confirm the decision again.</p> : null}
+          {conflict ? (
+            <div>
+              <p>
+                This case was updated by another operator or tab. Your local edits have been preserved.
+                Reload the latest case state before submitting again.
+              </p>
+              {onReload ? (
+                <div style={{ marginTop: "0.5rem" }}>
+                  <Button variant="secondary" onClick={onReload}>
+                    Reload case
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </Callout>
       ) : null}
 

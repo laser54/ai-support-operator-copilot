@@ -34,7 +34,17 @@ class CaseRepository:
 
         return self._session.get(CaseRecord, case_id)
 
-    def save_workflow_state(self, case_id: UUID, state: dict[str, object]) -> None:
+    def commit(self) -> None:
+        """Commit the current transaction."""
+        self._session.commit()
+
+    def rollback(self) -> None:
+        """Roll back the current transaction."""
+        self._session.rollback()
+
+    def save_workflow_state(
+        self, case_id: UUID, state: dict[str, object], *, commit: bool = True
+    ) -> None:
         """Store the current API-safe graph state and its latest checkpoint."""
 
         case = self._session.get(CaseRecord, case_id)
@@ -48,7 +58,10 @@ class CaseRepository:
             self._session.add(checkpoint)
         else:
             checkpoint.state = state
-        self._session.commit()
+        if commit:
+            self._session.commit()
+        else:
+            self._session.flush()
 
     def load_workflow_state(self, case_id: UUID) -> dict[str, object] | None:
         """Reload the latest persisted graph checkpoint."""
@@ -56,8 +69,27 @@ class CaseRepository:
         checkpoint = self._session.get(WorkflowCheckpointRecord, case_id)
         return checkpoint.state if checkpoint is not None else None
 
+    def load_workflow_state_for_update(self, case_id: UUID) -> dict[str, object] | None:
+        """Reload the latest persisted graph checkpoint while locking the case row."""
+
+        case = (
+            self._session.query(CaseRecord)
+            .filter(CaseRecord.id == case_id)
+            .with_for_update()
+            .one_or_none()
+        )
+        if case is None:
+            return None
+        checkpoint = (
+            self._session.query(WorkflowCheckpointRecord)
+            .filter(WorkflowCheckpointRecord.case_id == case_id)
+            .with_for_update()
+            .one_or_none()
+        )
+        return checkpoint.state if checkpoint is not None else None
+
     def execute_mock_incident(
-        self, *, case_id: UUID, action_id: UUID, approval_id: UUID
+        self, *, case_id: UUID, action_id: UUID, approval_id: UUID, commit: bool = True
     ) -> tuple[ExecutionResult, bool]:
         """Create one mock incident per action, returning an existing result on retry."""
 
@@ -71,7 +103,10 @@ class CaseRepository:
             external_reference=f"MOCK-{str(action_id)[:8].upper()}",
         )
         self._session.add(record)
-        self._session.commit()
+        if commit:
+            self._session.commit()
+        else:
+            self._session.flush()
         self._session.refresh(record)
         return self._execution_result(record), True
 
@@ -86,7 +121,7 @@ class CaseRepository:
             executed_at=record.created_at or datetime.now(UTC),
         )
 
-    def add_audit_event(self, event: AuditEvent) -> AuditEvent:
+    def add_audit_event(self, event: AuditEvent, *, commit: bool = True) -> AuditEvent:
         """Append one event with a database-assigned sequence for its case."""
 
         latest_sequence = (
@@ -110,7 +145,10 @@ class CaseRepository:
             correlation_id=event.correlation_id,
         )
         self._session.add(record)
-        self._session.commit()
+        if commit:
+            self._session.commit()
+        else:
+            self._session.flush()
         self._session.refresh(record)
         return event.model_copy(update={"sequence": record.sequence})
 

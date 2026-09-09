@@ -1,5 +1,7 @@
 """Human review, policy enforcement, and mock execution orchestration."""
 
+import hashlib
+import json
 from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
@@ -8,41 +10,111 @@ from app.domain.contracts import ActorType, AuditEvent, Review, ReviewDecision
 from app.persistence.repositories import CaseRepository
 
 
+class CaseNotFoundError(Exception):
+    """Raised when a requested case does not exist."""
+
+
+class ReviewConflictError(Exception):
+    """Raised when a review attempt conflicts with current version, state, or idempotency."""
+
+
+def _review_fingerprint(review: Review) -> str:
+    """Compute a deterministic hash of the human review input."""
+
+    content = {
+        "actor": review.actor,
+        "decision": review.decision.value,
+        "comment": review.comment,
+        "edits": review.edits.model_dump(mode="json"),
+    }
+    serialized = json.dumps(content, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
 class ReviewService:
     """Apply persisted human decisions to a paused workflow checkpoint."""
 
     def __init__(self, repository: CaseRepository) -> None:
         self._repository = repository
 
-    def submit(self, case_id: UUID, review: Review) -> dict[str, object]:
+    def submit(
+        self,
+        case_id: UUID,
+        review: Review,
+        *,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> dict[str, object]:
         """Persist edits and either reject or atomically execute an approved draft."""
 
-        state = self._repository.load_workflow_state(case_id)
+        state = self._repository.load_workflow_state_for_update(case_id)
         if state is None:
-            raise ValueError("case not found")
-        if state.get("status") not in {"awaiting_human_review", "completed", "rejected"}:
-            raise ValueError("case is not ready for review")
+            raise CaseNotFoundError("case not found")
 
-        self._apply_edits(state, review)
-        self._add_event(case_id, review, "review_recorded", "human_review")
-        if review.decision is ReviewDecision.REJECT:
-            state["status"] = "rejected"
-            self._set_actions(state, "rejected")
-            self._add_event(case_id, review, "action_rejected", "policy_gate")
-        else:
-            self._approve_and_execute(case_id, state, review)
-        state["review"] = review.model_dump(mode="json")
-        self._repository.save_workflow_state(case_id, state)
-        return state
+        fingerprint = _review_fingerprint(review)
+        persisted_idempotency_key = state.get("idempotency_key")
+        if persisted_idempotency_key == idempotency_key:
+            if state.get("review_fingerprint") == fingerprint:
+                return state
+            raise ReviewConflictError(
+                "idempotency key already used with different review payload"
+            )
 
-    def _approve_and_execute(self, case_id: UUID, state: dict[str, object], review: Review) -> None:
+        current_status = state.get("status")
+        if current_status in {"completed", "rejected"}:
+            raise ReviewConflictError(
+                f"case is already in terminal state '{current_status}' and cannot be modified"
+            )
+        if current_status != "awaiting_human_review":
+            raise ReviewConflictError(
+                f"case is in state '{current_status}' and is not ready for review"
+            )
+
+        current_version = int(str(state.get("version", 1)))
+        if expected_version != current_version:
+            raise ReviewConflictError(
+                f"version mismatch: expected {expected_version}, got {current_version}"
+            )
+
+        try:
+            self._apply_edits(state, review)
+            self._add_event(case_id, review, "review_recorded", "human_review", commit=False)
+            if review.decision is ReviewDecision.REJECT:
+                state["status"] = "rejected"
+                self._set_actions(state, "rejected")
+                self._add_event(case_id, review, "action_rejected", "policy_gate", commit=False)
+            else:
+                self._approve_and_execute(case_id, state, review, commit=False)
+
+            state["version"] = current_version + 1
+            state["idempotency_key"] = idempotency_key
+            state["review_fingerprint"] = fingerprint
+            state["review"] = review.model_dump(mode="json")
+            self._repository.save_workflow_state(case_id, state, commit=False)
+            self._repository.commit()
+            return state
+        except Exception:
+            self._repository.rollback()
+            raise
+
+    def _approve_and_execute(
+        self,
+        case_id: UUID,
+        state: dict[str, object],
+        review: Review,
+        *,
+        commit: bool = True,
+    ) -> None:
         brief = cast(dict[str, object], state["resolution_brief"])
         actions = [dict(item) for item in cast(list[dict[str, object]], brief["proposed_actions"])]
         action = self._incident_action(actions)
         action["state"] = "approved"
-        self._add_event(case_id, review, "action_approved", "policy_gate")
+        self._add_event(case_id, review, "action_approved", "policy_gate", commit=commit)
         result, created = self._repository.execute_mock_incident(
-            case_id=case_id, action_id=UUID(str(action["id"])), approval_id=review.id
+            case_id=case_id,
+            action_id=UUID(str(action["id"])),
+            approval_id=review.id,
+            commit=commit,
         )
         action["state"] = "executed"
         action["execution_result"] = result.model_dump(mode="json")
@@ -50,7 +122,9 @@ class ReviewService:
         state["resolution_brief"] = brief
         state["status"] = "completed"
         if created:
-            self._add_event(case_id, review, "action_executed", "execute_mock_incident")
+            self._add_event(
+                case_id, review, "action_executed", "execute_mock_incident", commit=commit
+            )
 
     @staticmethod
     def _incident_action(actions: list[dict[str, object]]) -> dict[str, object]:
@@ -82,7 +156,15 @@ class ReviewService:
         state["triage"] = triage
         state["resolution_brief"] = brief
 
-    def _add_event(self, case_id: UUID, review: Review, event_type: str, name: str) -> None:
+    def _add_event(
+        self,
+        case_id: UUID,
+        review: Review,
+        event_type: str,
+        name: str,
+        *,
+        commit: bool = True,
+    ) -> None:
         event = AuditEvent(
             case_id=case_id,
             sequence=1,
@@ -95,4 +177,4 @@ class ReviewService:
             output_summary=f"decision={review.decision.value}; approval_id={review.id}",
             correlation_id=uuid4(),
         )
-        self._repository.add_audit_event(event)
+        self._repository.add_audit_event(event, commit=commit)
