@@ -10,7 +10,8 @@ async function createDemoCase(page: Page) {
   await expect(page.getByRole("heading", { name: "Case workspace" })).toBeVisible();
 }
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ context, page }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await installMockApi(page);
 });
 
@@ -35,14 +36,17 @@ test("creates, inspects, edits, approves, and keeps a single mock incident", asy
     "P2",
   );
   await page.getByRole("button", { name: "Confirm approval" }).click();
-  await expect(page.getByText(/MOCK-1/)).toBeVisible();
+  await expect(page.getByText("MOCK-1", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Approve and create mock incident" }),
   ).toHaveCount(0);
 
   await page.getByRole("button", { name: "Refresh" }).click();
-  await expect(page.getByText(/MOCK-1/)).toBeVisible();
+  await expect(page.getByText("MOCK-1", { exact: true })).toBeVisible();
   await expect(page.getByText("P2", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Engineering is investigating.")).toBeVisible();
+  await page.getByRole("button", { name: "Copy customer reply" }).click();
+  await expect(page.getByRole("status")).toContainText("Reply copied to clipboard");
 
   await page.locator("#trace").getByText(/Audit trail/).click();
   await expect(page.getByText("Mock incident executed")).toBeVisible();
@@ -54,7 +58,7 @@ test("rejects without creating a mock incident", async ({ page }) => {
   await createDemoCase(page);
   await page.getByRole("button", { name: "Reject proposal" }).click();
   await page.getByRole("button", { name: "Confirm rejection" }).click();
-  await expect(page.getByText(/no incident was created/i)).toBeVisible();
+  await expect(page.getByText("No incident was created. The write action stayed blocked.", { exact: true })).toBeVisible();
   await page.locator("#trace").getByText(/Audit trail/).click();
   await expect(page.getByText("Action rejected")).toBeVisible();
   await expect(page.getByText("Mock incident executed")).toHaveCount(0);

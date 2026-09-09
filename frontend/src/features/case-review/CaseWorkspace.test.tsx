@@ -69,7 +69,7 @@ describe("CaseWorkspace", () => {
     expect(screen.getByText("kb-auth-5xx-after-release")).toBeInTheDocument();
     expect(screen.getByText("inc-104")).toBeInTheDocument();
     expect(screen.getByText("status-portal-auth-5xx")).toBeInTheDocument();
-    expect(screen.getByText(/We have recorded the access incident/)).toBeInTheDocument();
+    expect(screen.getAllByText(/We have recorded the access incident/).length).toBeGreaterThan(0);
     expect(screen.getByText(/cannot run until you approve/i)).toBeInTheDocument();
   });
 
@@ -168,7 +168,7 @@ describe("CaseWorkspace", () => {
         }),
       }),
     );
-    expect(await screen.findByText(/MOCK-1/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/MOCK-1/)).length).toBeGreaterThan(0);
     expect(
       screen.queryByRole("button", { name: "Approve and create mock incident" }),
     ).not.toBeInTheDocument();
@@ -195,7 +195,7 @@ describe("CaseWorkspace", () => {
       sampleCase.case_id,
       expect.objectContaining({ decision: "reject" }),
     );
-    expect(await screen.findByText(/no incident was created/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/no incident was created/i)).length).toBeGreaterThan(0);
     expect(screen.queryByText(/MOCK-/)).not.toBeInTheDocument();
   });
 
@@ -207,7 +207,7 @@ describe("CaseWorkspace", () => {
     await user.type(screen.getByLabelText("Reply draft"), "Temporary draft");
     expect(screen.getByText(/unsaved local edits/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Reset edits" }));
-    expect(screen.getByText(sampleCase.resolution_brief.reply_draft)).toBeInTheDocument();
+    expect(screen.getAllByText(sampleCase.resolution_brief.reply_draft).length).toBeGreaterThan(0);
     expect(screen.queryByText(/unsaved local edits/i)).not.toBeInTheDocument();
   });
 
@@ -255,5 +255,115 @@ describe("CaseWorkspace", () => {
     });
     expect(await screen.findByText("Action rejected")).toBeInTheDocument();
     expect(screen.queryByText("Mock incident executed")).not.toBeInTheDocument();
+  });
+
+  it("renders resolution brief with reply draft and proposed actions for all statuses", async () => {
+    // 1. awaiting_human_review
+    const { unmount } = renderWorkspace({ status: "awaiting_human_review" });
+    expect(await screen.findByText("AI Proposed Resolution Brief")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open reply edit controls" })).toBeInTheDocument();
+    expect(screen.getAllByText(sampleCase.resolution_brief.reply_draft).length).toBeGreaterThan(0);
+    expect(screen.getByText("create_incident")).toBeInTheDocument();
+    expect(
+      screen.getByText("Decision on proposed reply — not automatically sent to customer."),
+    ).toBeInTheDocument();
+    unmount();
+
+    // 2. completed
+    const completedCase: CaseResponse = {
+      ...sampleCase,
+      status: "completed",
+      resolution_brief: {
+        ...sampleCase.resolution_brief,
+        reply_draft: "Approved customer message.",
+        proposed_actions: [
+          {
+            ...sampleCase.resolution_brief.proposed_actions[0],
+            state: "executed",
+            execution_result: {
+              external_reference: "MOCK-104",
+              executed_at: "2026-08-12T11:00:00Z",
+              message: "Stored once",
+            },
+          },
+        ],
+      },
+    };
+    const { unmount: unmountCompleted } = renderWorkspace({
+      loadCase: vi.fn().mockResolvedValue(completedCase),
+    });
+    expect(await screen.findByText("Human Approved Resolution")).toBeInTheDocument();
+    expect(screen.getByText("Approved customer message.")).toBeInTheDocument();
+    expect(screen.getByText("MOCK-104")).toBeInTheDocument();
+    expect(
+      screen.getByText("Mock execution only. No real external incident was created."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open reply edit controls" })).not.toBeInTheDocument();
+    unmountCompleted();
+
+    // 3. rejected
+    const rejectedCase: CaseResponse = {
+      ...sampleCase,
+      status: "rejected",
+      resolution_brief: {
+        ...sampleCase.resolution_brief,
+        reply_draft: "Rejected customer message.",
+        proposed_actions: [
+          {
+            ...sampleCase.resolution_brief.proposed_actions[0],
+            state: "rejected",
+          },
+        ],
+      },
+    };
+    renderWorkspace({
+      loadCase: vi.fn().mockResolvedValue(rejectedCase),
+    });
+    expect(await screen.findByText("Proposal Rejected · Actions Blocked")).toBeInTheDocument();
+    expect(screen.getByText("Rejected customer message.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Action blocked by policy gate. No incident was created."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open reply edit controls" })).not.toBeInTheDocument();
+  });
+
+  it("shows empty state when reply draft is missing or blank", async () => {
+    const emptyCase: CaseResponse = {
+      ...sampleCase,
+      resolution_brief: {
+        ...sampleCase.resolution_brief,
+        reply_draft: "",
+        proposed_actions: [],
+      },
+    };
+    renderWorkspace({ loadCase: vi.fn().mockResolvedValue(emptyCase) });
+    expect(await screen.findByText("No customer reply recorded for this case.")).toBeInTheDocument();
+    expect(screen.getByText("No actions were proposed.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy customer reply" })).not.toBeInTheDocument();
+  });
+
+  it("copies customer reply text and displays accessible status feedback", async () => {
+    const copyText = vi.fn().mockResolvedValue(undefined);
+    const { user } = renderWorkspace({ copyText });
+    await screen.findByText("Waiting for review");
+
+    const copyBtn = screen.getByRole("button", { name: "Copy customer reply" });
+    await user.click(copyBtn);
+
+    expect(copyText).toHaveBeenCalledWith(sampleCase.resolution_brief.reply_draft);
+    expect(await screen.findByRole("status")).toHaveTextContent("Reply copied to clipboard");
+  });
+
+  it("displays accessible error alert when clipboard API fails", async () => {
+    const copyText = vi.fn().mockRejectedValue(new Error("Clipboard write permission denied"));
+    const { user } = renderWorkspace({ copyText });
+    await screen.findByText("Waiting for review");
+
+    const copyBtn = screen.getByRole("button", { name: "Copy customer reply" });
+    await user.click(copyBtn);
+
+    expect(copyText).toHaveBeenCalledWith(sampleCase.resolution_brief.reply_draft);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Clipboard write permission denied");
+    expect(screen.getAllByText(sampleCase.resolution_brief.reply_draft).length).toBeGreaterThan(0);
   });
 });

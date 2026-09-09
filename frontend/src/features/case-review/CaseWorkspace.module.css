@@ -155,6 +155,173 @@
   width: fit-content;
 }
 
+.cardBannerApproved {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 16%, transparent);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.cardBannerRejected {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 16%, transparent);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.briefContent {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.replySection,
+.actionsSection {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.briefSubheading {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.replyBlockquote {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-review);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: color-mix(in srgb, var(--color-surface-muted) 50%, var(--color-surface));
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  user-select: text;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.replyActionsRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.copyStatusSuccess {
+  font-size: var(--font-size-sm);
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.copyStatusError {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  font-weight: 500;
+}
+
+.disclaimerText {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.emptyText {
+  margin: 0;
+  font-style: italic;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.proposedActionsList {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.actionCard {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.actionCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.actionKind {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.actionBadges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.actionPreview {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.mockExecutionBox {
+  border-top: 1px dashed var(--color-border);
+  padding-top: var(--space-2);
+  display: grid;
+  gap: 0.25rem;
+}
+
+.mockRefText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  color: var(--color-success);
+}
+
+.mockDisclaimer {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.rejectedDisclaimer {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-danger);
+}
+
 .sectionHeaderWithAction {
   display: flex;
   align-items: center;
