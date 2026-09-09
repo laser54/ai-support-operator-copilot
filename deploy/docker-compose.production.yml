@@ -15,7 +15,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   api:
-    image: ghcr.io/laser54/ai-support-operator-copilot:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
       - .env
