@@ -62,6 +62,7 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.case(caseId), data);
       void queryClient.invalidateQueries({ queryKey: queryKeys.caseTrace(caseId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.casesAll() });
     },
   });
   const traceQuery = useQuery({
@@ -127,6 +128,9 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
     <div className={styles.workspace}>
       <header className={styles.header}>
         <div>
+          <Link to="/cases" className={styles.backLink}>
+            ← Back to cases queue
+          </Link>
           <h1>Case workspace</h1>
           <p className={styles.caseId}>{caseData.case_id}</p>
         </div>

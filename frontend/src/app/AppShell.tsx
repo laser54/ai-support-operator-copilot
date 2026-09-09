@@ -1,4 +1,4 @@
-import { BookOpen } from "lucide-react";
+import { BookOpen, Inbox } from "lucide-react";
 import { NavLink } from "react-router";
 import type { ReactNode } from "react";
 
@@ -19,6 +19,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
         </NavLink>
         <nav className={styles.nav} aria-label="Workspace">
+          <NavLink className={styles.navLink} to="/cases" title="Cases Queue">
+            <Inbox size={15} strokeWidth={2} />
+            <span className={styles.navLabelLong}>Cases Queue</span>
+            <span className={styles.navLabelShort}>Queue</span>
+          </NavLink>
           <NavLink className={styles.navLink} to="/artifacts" title="Knowledge Catalog">
             <BookOpen size={15} strokeWidth={2} />
             <span className={styles.navLabelLong}>Knowledge Catalog</span>

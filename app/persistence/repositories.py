@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.domain.contracts import ActorType, AuditEvent, ExecutionResult, ExecutionState
@@ -33,6 +34,61 @@ class CaseRepository:
         """Reload a case record by identifier."""
 
         return self._session.get(CaseRecord, case_id)
+
+    def list_cases(
+        self,
+        *,
+        status: str | None = None,
+        priority: str | None = None,
+        q: str | None = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> tuple[list[CaseRecord], int]:
+        """List cases with server-side filtering, search, and pagination."""
+        query = self._session.query(CaseRecord)
+
+        if status:
+            query = query.filter(CaseRecord.status == status)
+
+        if priority:
+            bind = self._session.get_bind()
+            dialect_name = bind.dialect.name if bind else "sqlite"
+            if dialect_name == "sqlite":
+                query = query.filter(
+                    func.json_extract(CaseRecord.workflow_state, "$.triage.priority") == priority
+                )
+            elif dialect_name == "postgresql":
+                query = query.filter(
+                    func.json_extract_path_text(CaseRecord.workflow_state, "triage", "priority")
+                    == priority
+                )
+            else:
+                query = query.filter(
+                    CaseRecord.workflow_state["triage"]["priority"].as_string() == priority
+                )
+
+        if q:
+            q_clean = q.strip()
+            if q_clean:
+                try:
+                    parsed_uuid = UUID(q_clean)
+                    query = query.filter(
+                        or_(
+                            CaseRecord.id == parsed_uuid,
+                            CaseRecord.raw_request.ilike(f"%{q_clean}%"),
+                        )
+                    )
+                except ValueError:
+                    query = query.filter(CaseRecord.raw_request.ilike(f"%{q_clean}%"))
+
+        total = query.count()
+        items = (
+            query.order_by(CaseRecord.created_at.desc(), CaseRecord.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+        return items, total
 
     def commit(self) -> None:
         """Commit the current transaction."""

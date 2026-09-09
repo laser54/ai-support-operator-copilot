@@ -4,12 +4,19 @@ from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.domain.contracts import AuditEvent, Review, ReviewDecision, ReviewEdits
+from app.domain.contracts import (
+    AuditEvent,
+    CaseStatus,
+    Priority,
+    Review,
+    ReviewDecision,
+    ReviewEdits,
+)
 from app.graph.workflow import CaseWorkflow
 from app.llm.service import TriageAndBriefService
 from app.persistence.database import get_session
@@ -86,6 +93,90 @@ def _response(state: dict[str, object]) -> CaseResponse:
         fallback_reason=str(state["fallback_reason"]) if state.get("fallback_reason") else None,
         model=str(state["model"]) if state.get("model") else None,
         review=cast(dict[str, object], state["review"]) if state.get("review") else None,
+    )
+
+
+class CaseQueueItem(BaseModel):
+    """Compact summary of a case for queue display."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: UUID
+    status: str
+    priority: str
+    risk: str | None = None
+    request_text: str
+    version: int = Field(default=1, ge=1)
+    created_at: datetime
+    updated_at: datetime
+
+
+class CaseQueueResponse(BaseModel):
+    """Paginated list of cases in the operator queue."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[CaseQueueItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+@router.get("", response_model=CaseQueueResponse)
+def list_cases(
+    status: CaseStatus | None = Query(default=None),
+    priority: Priority | None = Query(default=None),
+    q: str | None = Query(default=None, max_length=200),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+    session: Session = Depends(get_session),
+) -> CaseQueueResponse:
+    """List cases with server-side pagination, search, and filtering."""
+    repository = CaseRepository(session)
+    status_filter = status.value if status is not None else None
+    priority_filter = priority.value if priority is not None else None
+    q_filter = q.strip() if q and q.strip() else None
+
+    records, total = repository.list_cases(
+        status=status_filter,
+        priority=priority_filter,
+        q=q_filter,
+        page=page,
+        page_size=page_size,
+    )
+
+    items: list[CaseQueueItem] = []
+    for record in records:
+        ws = record.workflow_state if isinstance(record.workflow_state, dict) else {}
+        raw_triage = ws.get("triage")
+        triage: dict[str, object] = raw_triage if isinstance(raw_triage, dict) else {}
+        item_priority = str(triage.get("priority", "P3"))
+        raw_risk = triage.get("risk")
+        item_risk = str(raw_risk) if raw_risk is not None else None
+        item_version = int(str(ws.get("version", 1)))
+
+        items.append(
+            CaseQueueItem(
+                case_id=record.id,
+                status=record.status,
+                priority=item_priority,
+                risk=item_risk,
+                request_text=record.raw_request,
+                version=item_version,
+                created_at=record.created_at,
+                updated_at=record.updated_at,
+            )
+        )
+
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+
+    return CaseQueueResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
     )
 
 

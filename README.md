@@ -176,6 +176,7 @@ The system includes five synthetic catalog scenarios with specialized runbooks, 
 
 | Method | Endpoint | Description | Role / Gate |
 |---|---|---|---|
+| `GET` | `/cases` | List cases with server-side pagination, search (text, UUID), and filters (status, priority) | Operator / Queue |
 | `POST` | `/cases` | Create a case and run LangGraph intake through evidence gathering to the review gate | System / Intake |
 | `GET` | `/cases/{case_id}` | Retrieve persisted workflow checkpoint, triage, evidence, brief, and provider provenance | Operator / Reviewer |
 | `POST` | `/cases/{case_id}/review` | Submit operator corrections, edited customer reply, and approve/reject decision | Human Policy Gate |

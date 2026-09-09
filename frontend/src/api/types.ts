@@ -123,3 +123,30 @@ export type TraceResponse = {
   case_id: string;
   events: AuditEvent[];
 };
+
+export type CaseQueueItem = {
+  case_id: string;
+  status: CaseStatus;
+  priority: Priority;
+  risk: RiskLevel | null;
+  request_text: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CaseQueueResponse = {
+  items: CaseQueueItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+};
+
+export type CaseQueueParams = {
+  status?: CaseStatus | "";
+  priority?: Priority | "";
+  q?: string;
+  page?: number;
+  page_size?: number;
+};
