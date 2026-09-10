@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
 
 
 class CaseStatus(StrEnum):
@@ -171,6 +171,41 @@ class ReviewDraft(BaseModel):
     saved_at: datetime
 
 
+class Clarification(BaseModel):
+    """Supplementary context provided for a case after initial intake."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID = Field(default_factory=uuid4)
+    text: str = Field(min_length=1, max_length=10_000)
+    author: str = Field(default="requester", min_length=1, max_length=255)
+    created_at: datetime
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("clarification text cannot be empty or blank")
+        return value
+
+
+class CaseRevision(BaseModel):
+    """Snapshot of triage, evidence, and resolution brief for a specific analysis run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    revision_number: int = Field(ge=1)
+    created_at: datetime
+    triggered_by: str = Field(min_length=1, max_length=100)
+    clarification_id: UUID | None = None
+    triage: Triage
+    evidence: list[Evidence] = Field(default_factory=list)
+    resolution_brief: ResolutionBrief
+    provider: str
+    fallback_reason: str | None = None
+    model: str | None = None
+
+
 class AuditEvent(BaseModel):
     """Ordered, safe summary of a workflow, tool, review, or execution event."""
 
@@ -231,3 +266,6 @@ class Case(BaseModel):
     final_reply: str | None = Field(default=None, max_length=4_000)
     review: Review | None = None
     review_draft: ReviewDraft | None = None
+    clarifications: list[Clarification] = Field(default_factory=list)
+    revisions: list[CaseRevision] = Field(default_factory=list)
+    current_revision: int = Field(default=1, ge=1)

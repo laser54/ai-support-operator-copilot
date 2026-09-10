@@ -1,5 +1,6 @@
 import type { ApiClient } from "./client";
 import type {
+  AddClarificationRequest,
   ArtifactEntry,
   CaseQueueParams,
   CaseQueueResponse,
@@ -43,6 +44,9 @@ export function createCasesApi(client: ApiClient) {
       return client.delete<CaseResponse>(
         `/cases/${caseId}/draft?${params.toString()}`,
       );
+    },
+    addClarification(caseId: string, body: AddClarificationRequest) {
+      return client.post<CaseResponse>(`/cases/${caseId}/clarifications`, body);
     },
     trace(caseId: string) {
       return client.get<TraceResponse>(`/cases/${caseId}/trace`);

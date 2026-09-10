@@ -27,6 +27,11 @@ export function workflowItems(caseData: CaseResponse): TaskRowItem[] {
     caseData.status === "rejected" ? "failed" : settled ? "completed" : "waiting";
   return [
     { id: "request", label: "Request", status: "completed" },
+    {
+      id: "clarifications",
+      label: "Clarifications",
+      status: caseData.clarifications && caseData.clarifications.length > 0 ? "completed" : "waiting",
+    },
     { id: "evidence", label: "Evidence", status: "completed" },
     { id: "brief", label: "Brief", status: "completed" },
     {
