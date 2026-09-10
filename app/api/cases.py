@@ -284,11 +284,16 @@ def save_draft(
 def reset_draft(
     case_id: UUID,
     actor: str = Query(default="operator", min_length=1, max_length=255),
+    expected_draft_version: int | None = Query(default=None, ge=0),
     session: Session = Depends(get_session),
 ) -> CaseResponse:
     """Reset saved review draft back to initial AI brief."""
     try:
-        state = ReviewService(CaseRepository(session)).reset_draft(case_id, actor=actor)
+        state = ReviewService(CaseRepository(session)).reset_draft(
+            case_id,
+            actor=actor,
+            expected_draft_version=expected_draft_version,
+        )
     except CaseNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
     except ReviewConflictError as error:

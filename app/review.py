@@ -220,7 +220,7 @@ class ReviewService:
         current_draft_version = (
             int(str(current_draft.get("draft_version", 0)))
             if isinstance(current_draft, dict)
-            else 0
+            else int(str(state.get("review_draft_version", 0)))
         )
 
         if expected_draft_version is not None and expected_draft_version != current_draft_version:
@@ -258,7 +258,13 @@ class ReviewService:
             self._repository.rollback()
             raise
 
-    def reset_draft(self, case_id: UUID, *, actor: str) -> dict[str, object]:
+    def reset_draft(
+        self,
+        case_id: UUID,
+        *,
+        actor: str,
+        expected_draft_version: int | None = None,
+    ) -> dict[str, object]:
         """Reset saved review draft and revert to initial AI brief."""
         state = self._repository.load_workflow_state_for_update(case_id)
         if state is None:
@@ -274,7 +280,20 @@ class ReviewService:
                 f"case is in state '{current_status}' and is not ready for review"
             )
 
+        current_draft = state.get("review_draft")
+        current_draft_version = (
+            int(str(current_draft.get("draft_version", 0)))
+            if isinstance(current_draft, dict)
+            else int(str(state.get("review_draft_version", 0)))
+        )
+        if expected_draft_version is not None and expected_draft_version != current_draft_version:
+            raise ReviewConflictError(
+                f"draft version mismatch: expected {expected_draft_version}, "
+                f"got {current_draft_version}"
+            )
+
         state["review_draft"] = None
+        state["review_draft_version"] = current_draft_version + 1
 
         try:
             self._add_draft_event(

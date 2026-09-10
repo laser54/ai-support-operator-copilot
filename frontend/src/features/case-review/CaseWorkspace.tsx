@@ -38,7 +38,7 @@ type Loaders = {
   loadTrace?: (caseId: string) => Promise<TraceResponse>;
   submitReview?: (caseId: string, body: ReviewRequest) => Promise<CaseResponse>;
   saveDraft?: (caseId: string, body: SaveDraftRequest) => Promise<CaseResponse>;
-  resetDraft?: (caseId: string, actor?: string) => Promise<CaseResponse>;
+  resetDraft?: (caseId: string, actor?: string, expectedDraftVersion?: number | null) => Promise<CaseResponse>;
   copyText?: (value: string) => Promise<void>;
 };
 
@@ -85,7 +85,11 @@ export function CaseWorkspace({
   });
   const resetDraftMutation = useMutation({
     mutationFn: () =>
-      (resetDraft ?? ((id) => getCasesApi().resetDraft(id)))(caseId),
+      (resetDraft ?? ((id, actor, version) => getCasesApi().resetDraft(id, actor, version)))(
+        caseId,
+        undefined,
+        caseData.review_draft?.draft_version ?? 0,
+      ),
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.case(caseId), data);
       void queryClient.invalidateQueries({ queryKey: queryKeys.caseTrace(caseId) });

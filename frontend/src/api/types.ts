@@ -99,6 +99,7 @@ export type SaveDraftRequest = {
 
 export type ResetDraftRequest = {
   actor?: string;
+  expected_draft_version?: number | null;
 };
 
 export type CaseResponse = {

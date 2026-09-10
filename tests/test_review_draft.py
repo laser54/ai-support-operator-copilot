@@ -155,8 +155,11 @@ def test_review_service_reset_draft(sqlite_session_factory: sessionmaker[Session
         )
         service.save_draft(record.id, draft)
 
-        reset_state = service.reset_draft(record.id, actor="operator-1")
+        reset_state = service.reset_draft(record.id, actor="operator-1", expected_draft_version=1)
         assert reset_state["review_draft"] is None
+
+        with pytest.raises(ReviewConflictError, match="draft version mismatch"):
+            service.reset_draft(record.id, actor="operator-1", expected_draft_version=1)
         assert reset_state["status"] == "awaiting_human_review"
 
         events = CaseRepository(session).list_audit_events(record.id)
@@ -244,9 +247,17 @@ def test_api_save_draft_reload_and_reset(
     assert "draft version mismatch" in conflict_res.json()["error"]["message"]
 
     # 4. DELETE /cases/{case_id}/draft resets draft
-    del_res = client.delete(f"/cases/{case_id}/draft?actor=operator-alice")
+    del_res = client.delete(
+        f"/cases/{case_id}/draft?actor=operator-alice&expected_draft_version=1"
+    )
     assert del_res.status_code == 200
     assert del_res.json()["review_draft"] is None
+
+    stale_reset = client.delete(
+        f"/cases/{case_id}/draft?actor=operator-alice&expected_draft_version=1"
+    )
+    assert stale_reset.status_code == 409
+    assert stale_reset.json()["error"]["code"] == "conflict"
 
     # 5. GET /cases/{case_id} shows draft is gone
     reloaded_after_reset = client.get(f"/cases/{case_id}").json()

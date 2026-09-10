@@ -35,9 +35,13 @@ export function createCasesApi(client: ApiClient) {
     saveDraft(caseId: string, body: SaveDraftRequest) {
       return client.put<CaseResponse>(`/cases/${caseId}/draft`, body);
     },
-    resetDraft(caseId: string, actor: string = "operator") {
+    resetDraft(caseId: string, actor: string = "operator", expectedDraftVersion?: number | null) {
+      const params = new URLSearchParams({ actor });
+      if (expectedDraftVersion !== undefined && expectedDraftVersion !== null) {
+        params.set("expected_draft_version", String(expectedDraftVersion));
+      }
       return client.delete<CaseResponse>(
-        `/cases/${caseId}/draft?actor=${encodeURIComponent(actor)}`,
+        `/cases/${caseId}/draft?${params.toString()}`,
       );
     },
     trace(caseId: string) {

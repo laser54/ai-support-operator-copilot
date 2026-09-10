@@ -14,7 +14,7 @@ function renderWorkspace(options?: {
   loadTrace?: (caseId: string) => Promise<TraceResponse>;
   submitReview?: (caseId: string, body: ReviewRequest) => Promise<CaseResponse>;
   saveDraft?: (caseId: string, body: SaveDraftRequest) => Promise<CaseResponse>;
-  resetDraft?: (caseId: string, actor?: string) => Promise<CaseResponse>;
+  resetDraft?: (caseId: string, actor?: string, expectedDraftVersion?: number | null) => Promise<CaseResponse>;
   status?: CaseResponse["status"];
   copyText?: (value: string) => Promise<void>;
 }) {
@@ -595,6 +595,6 @@ describe("CaseWorkspace", () => {
     // Confirm reset
     await user.click(screen.getByRole("button", { name: "Confirm reset" }));
 
-    expect(resetDraft).toHaveBeenCalledWith(sampleCase.case_id);
+    expect(resetDraft).toHaveBeenCalledWith(sampleCase.case_id, undefined, 1);
   });
 });
