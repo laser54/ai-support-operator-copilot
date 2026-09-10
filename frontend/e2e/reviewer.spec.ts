@@ -106,7 +106,7 @@ test("shows a recovery path for an unknown case", async ({ page }) => {
 
 test("remains usable at mobile, tablet, and desktop widths", async ({ page }) => {
   await createDemoCase(page);
-  for (const width of [320, 768, 1280] as const) {
+  for (const width of [320, 375, 768, 1280] as const) {
     await page.setViewportSize({ width, height: 900 });
     await expect(page.getByRole("heading", { name: "Case workspace" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Case workflow" })).toBeVisible();
