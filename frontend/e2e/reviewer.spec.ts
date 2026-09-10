@@ -111,6 +111,7 @@ test("remains usable at mobile, tablet, and desktop widths", async ({ page }) =>
     await expect(page.getByRole("heading", { name: "Case workspace" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Case workflow" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Approve and create mock incident" })).toBeVisible();
+    await expect(page.locator("body")).toHaveJSProperty("scrollWidth", width);
     await test.info().attach(`workspace-${width}`, {
       body: await page.screenshot({ fullPage: true }),
       contentType: "image/png",
