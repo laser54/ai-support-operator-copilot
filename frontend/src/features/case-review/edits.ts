@@ -1,19 +1,46 @@
-import type { CaseResponse, Priority, ReviewEdits, ReviewRequest } from "../../api/types";
+import type {
+  CaseResponse,
+  Priority,
+  ReviewEdits,
+  ReviewRequest,
+  SaveDraftRequest,
+} from "../../api/types";
 
 export type LocalReview = {
   actor: string;
   priority: Priority;
   replyDraft: string;
   requesterFacts: string;
+  comment: string;
 };
 
-export function localReviewFromCase(caseData: CaseResponse, actor: string): LocalReview {
+export function initialReviewFromCase(caseData: CaseResponse, fallbackActor: string): LocalReview {
   return {
-    actor,
+    actor: fallbackActor,
     priority: caseData.triage.priority,
     replyDraft: caseData.resolution_brief.reply_draft,
     requesterFacts: caseData.resolution_brief.requester_facts.join("\n"),
+    comment: "",
   };
+}
+
+export function savedReviewFromCase(caseData: CaseResponse, fallbackActor: string): LocalReview {
+  if (caseData.review_draft) {
+    return {
+      actor: caseData.review_draft.actor || fallbackActor,
+      priority: caseData.review_draft.priority ?? caseData.triage.priority,
+      replyDraft: caseData.review_draft.reply_draft ?? caseData.resolution_brief.reply_draft,
+      requesterFacts: caseData.review_draft.requester_facts
+        ? caseData.review_draft.requester_facts.join("\n")
+        : caseData.resolution_brief.requester_facts.join("\n"),
+      comment: caseData.review_draft.comment ?? "",
+    };
+  }
+  return initialReviewFromCase(caseData, fallbackActor);
+}
+
+export function localReviewFromCase(caseData: CaseResponse, fallbackActor: string): LocalReview {
+  return savedReviewFromCase(caseData, fallbackActor);
 }
 
 export function parseFacts(value: string): string[] {
@@ -24,12 +51,39 @@ export function parseFacts(value: string): string[] {
 }
 
 export function isDirty(caseData: CaseResponse, local: LocalReview): boolean {
+  const saved = savedReviewFromCase(caseData, local.actor);
   return (
-    local.priority !== caseData.triage.priority ||
-    local.replyDraft !== caseData.resolution_brief.reply_draft ||
+    local.priority !== saved.priority ||
+    local.replyDraft !== saved.replyDraft ||
+    (local.comment ?? "").trim() !== (saved.comment ?? "").trim() ||
     JSON.stringify(parseFacts(local.requesterFacts)) !==
-      JSON.stringify(caseData.resolution_brief.requester_facts)
+      JSON.stringify(parseFacts(saved.requesterFacts))
   );
+}
+
+export function isModifiedFromAi(caseData: CaseResponse, local: LocalReview): boolean {
+  const initial = initialReviewFromCase(caseData, local.actor);
+  return (
+    local.priority !== initial.priority ||
+    local.replyDraft !== initial.replyDraft ||
+    Boolean((local.comment ?? "").trim()) ||
+    JSON.stringify(parseFacts(local.requesterFacts)) !==
+      JSON.stringify(parseFacts(initial.requesterFacts))
+  );
+}
+
+export function buildSaveDraftRequest(
+  caseData: CaseResponse,
+  local: LocalReview,
+): SaveDraftRequest {
+  return {
+    actor: local.actor.trim() || "operator",
+    priority: local.priority,
+    reply_draft: local.replyDraft,
+    requester_facts: parseFacts(local.requesterFacts),
+    comment: local.comment?.trim() || null,
+    expected_draft_version: caseData.review_draft?.draft_version ?? 0,
+  };
 }
 
 export function buildReviewRequest(
@@ -50,11 +104,12 @@ export function buildReviewRequest(
   if (JSON.stringify(facts) !== JSON.stringify(caseData.resolution_brief.requester_facts)) {
     edits.requester_facts = facts;
   }
+  const effectiveComment = comment !== undefined ? comment : local.comment;
   return {
     actor: local.actor.trim(),
     edits,
     decision,
-    comment: comment?.trim() ? comment.trim() : null,
+    comment: effectiveComment?.trim() ? effectiveComment.trim() : null,
     expected_version: caseData.version ?? 1,
     idempotency_key:
       idempotencyKey ??

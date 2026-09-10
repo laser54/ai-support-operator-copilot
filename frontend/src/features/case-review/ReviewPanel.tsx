@@ -1,8 +1,9 @@
-import { Shield } from "lucide-react";
-import { useEffect, useState } from "react";
+import { RotateCcw, Save, Shield } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-import type { CaseResponse, Priority, ReviewRequest } from "../../api/types";
+import type { CaseResponse, Priority, ReviewRequest, SaveDraftRequest } from "../../api/types";
 import { ApprovalCard } from "../../components/patterns/ApprovalCard";
+import { Badge } from "../../components/primitives/Badge";
 import { Button } from "../../components/primitives/Button";
 import { Callout } from "../../components/primitives/Callout";
 import { Card } from "../../components/primitives/Card";
@@ -11,7 +12,15 @@ import { SectionHeading } from "../../components/primitives/SectionHeading";
 import { TextArea } from "../../components/primitives/TextArea";
 import { TextField } from "../../components/primitives/TextField";
 import { DEFAULT_REVIEW_ACTOR } from "./constants";
-import { buildReviewRequest, isDirty, localReviewFromCase } from "./edits";
+import {
+  buildReviewRequest,
+  buildSaveDraftRequest,
+  initialReviewFromCase,
+  isDirty,
+  isModifiedFromAi,
+  localReviewFromCase,
+  savedReviewFromCase,
+} from "./edits";
 import styles from "./ReviewPanel.module.css";
 import fieldStyles from "../../components/primitives/Field.module.css";
 
@@ -26,6 +35,11 @@ export function ReviewPanel({
   executionTraceHref = "#trace",
   onReload,
   onSubmit,
+  onSaveDraft,
+  onResetDraft,
+  draftBusy = false,
+  draftError,
+  draftConflict = false,
 }: {
   caseData: CaseResponse;
   busy: boolean;
@@ -35,34 +49,79 @@ export function ReviewPanel({
   executionTraceHref?: string;
   onReload?: () => void;
   onSubmit: (body: ReviewRequest) => void;
+  onSaveDraft?: (body: SaveDraftRequest) => void;
+  onResetDraft?: () => void;
+  draftBusy?: boolean;
+  draftError?: string;
+  draftConflict?: boolean;
 }) {
   const [local, setLocal] = useState(() => localReviewFromCase(caseData, DEFAULT_REVIEW_ACTOR));
   const [editingAnalysis, setEditingAnalysis] = useState(false);
   const [editingReply, setEditingReply] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [comment, setComment] = useState("");
+  const [resetDraftOpen, setResetDraftOpen] = useState(false);
+  const [rejectComment, setRejectComment] = useState("");
+
+  const prevCaseIdRef = useRef(caseData.case_id);
+  const dirty = isDirty(caseData, local);
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
 
   useEffect(() => {
-    setLocal(localReviewFromCase(caseData, DEFAULT_REVIEW_ACTOR));
-    setEditingAnalysis(false);
-    setEditingReply(false);
-    setApproveOpen(false);
-    setRejectOpen(false);
-    setComment("");
+    const caseIdChanged = prevCaseIdRef.current !== caseData.case_id;
+    prevCaseIdRef.current = caseData.case_id;
+
+    if (caseIdChanged || !dirtyRef.current) {
+      setLocal(localReviewFromCase(caseData, DEFAULT_REVIEW_ACTOR));
+      setEditingAnalysis(false);
+      setEditingReply(false);
+      setApproveOpen(false);
+      setRejectOpen(false);
+      setResetDraftOpen(false);
+      setRejectComment("");
+    }
   }, [caseData]);
 
-  const dirty = isDirty(caseData, local);
+  // Warn operator if navigating away or closing window with unsaved edits
+  useEffect(() => {
+    if (!dirty) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [dirty]);
+
   const incident = caseData.resolution_brief.proposed_actions.find(
     (action) => action.kind === "create_incident",
   );
   const mockRef = incident?.execution_result?.external_reference;
   const awaiting = caseData.status === "awaiting_human_review";
 
-  function reset() {
-    setLocal(localReviewFromCase(caseData, local.actor));
+  function resetToSaved() {
+    setLocal(savedReviewFromCase(caseData, local.actor));
     setEditingAnalysis(false);
     setEditingReply(false);
+  }
+
+  function handleSaveDraft() {
+    if (onSaveDraft) {
+      onSaveDraft(buildSaveDraftRequest(caseData, local));
+    }
+  }
+
+  function handleConfirmResetDraft() {
+    setResetDraftOpen(false);
+    setLocal(initialReviewFromCase(caseData, local.actor));
+    setEditingAnalysis(false);
+    setEditingReply(false);
+    if (onResetDraft) {
+      onResetDraft();
+    }
   }
 
   if (caseData.status === "completed") {
@@ -95,6 +154,7 @@ export function ReviewPanel({
   }
 
   const request = buildReviewRequest(caseData, local, "approve");
+  const hasModifiedFromAi = isModifiedFromAi(caseData, local);
 
   return (
     <div className={styles.stack}>
@@ -173,9 +233,50 @@ export function ReviewPanel({
             </Button>
           </>
         )}
+
+        <TextArea
+          label="Review comment / internal notes"
+          hint="Optional notes saved with draft and review decisions"
+          value={local.comment}
+          onChange={(event) => setLocal({ ...local, comment: event.target.value })}
+        />
+
+        <div className={styles.draftToolbar}>
+          <div className={styles.draftStatusGroup}>
+            {dirty ? (
+              <Badge tone="warning">Unsaved changes</Badge>
+            ) : caseData.review_draft ? (
+              <Badge tone="success">
+                Draft saved (v{caseData.review_draft.draft_version} · {new Date(caseData.review_draft.saved_at).toLocaleTimeString()})
+              </Badge>
+            ) : (
+              <Badge tone="neutral">Initial AI suggestions</Badge>
+            )}
+          </div>
+          <div className={styles.draftActionsGroup}>
+            <Button
+              variant="secondary"
+              onClick={() => setResetDraftOpen(true)}
+              disabled={busy || draftBusy || (!caseData.review_draft && !hasModifiedFromAi)}
+            >
+              <RotateCcw size={13} aria-hidden="true" />
+              Reset draft
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleSaveDraft}
+              loading={draftBusy}
+              disabled={busy || (!dirty && !draftError && !caseData.review_draft)}
+            >
+              <Save size={13} aria-hidden="true" />
+              Save draft
+            </Button>
+          </div>
+        </div>
+
         {dirty ? (
           <Callout tone="warning" title="Unsaved local edits">
-            <p>These values are not stored until you approve or reject.</p>
+            <p>These values are not stored until you save a draft, approve, or reject.</p>
             <div className={styles.diffBox}>
               <p className={styles.diffHeader}>AI Suggestion vs Operator Edits</p>
               {local.priority !== caseData.triage.priority ? (
@@ -197,20 +298,53 @@ export function ReviewPanel({
                 </div>
               ) : null}
             </div>
-            <Button variant="secondary" onClick={reset}>
+            <Button variant="secondary" onClick={resetToSaved}>
               Reset edits
             </Button>
           </Callout>
         ) : null}
       </Card>
 
+      {draftError ? (
+        <Callout
+          tone="danger"
+          title={draftConflict ? "Draft conflict (outdated version)" : "Failed to save draft"}
+        >
+          <p role="alert">{draftError}</p>
+          {draftConflict ? (
+            <div>
+              <p>
+                This draft was updated by another operator or tab. Your local edits have been preserved.
+                Reload the latest case state before saving again.
+              </p>
+              {onReload ? (
+                <div style={{ marginTop: "0.5rem" }}>
+                  <Button variant="secondary" onClick={onReload}>
+                    Reload case
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div style={{ marginTop: "0.5rem" }}>
+              <Button variant="secondary" onClick={handleSaveDraft} loading={draftBusy}>
+                Retry saving draft
+              </Button>
+            </div>
+          )}
+        </Callout>
+      ) : null}
+
       <div className={styles.bar}>
         <ApprovalCard
           title="Human review gate"
           summary={incident?.payload_preview ?? "No incident proposal"}
-          busy={busy}
+          busy={busy || draftBusy}
           onApprove={() => setApproveOpen(true)}
-          onReject={() => setRejectOpen(true)}
+          onReject={() => {
+            setRejectComment(local.comment);
+            setRejectOpen(true);
+          }}
         />
         <p>
           <a href={policyTraceHref}>View policy gate in trace</a>
@@ -241,6 +375,33 @@ export function ReviewPanel({
       ) : null}
 
       <Dialog
+        open={resetDraftOpen}
+        busy={busy || draftBusy}
+        title="Reset review draft"
+        onClose={() => setResetDraftOpen(false)}
+      >
+        <p>
+          Are you sure you want to reset the review draft? This will discard your saved draft and
+          restore original AI suggestions.
+        </p>
+        <div className={styles.dialogActions}>
+          <Button
+            variant="danger"
+            loading={draftBusy}
+            onClick={handleConfirmResetDraft}
+          >
+            Confirm reset
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setResetDraftOpen(false)}
+          >
+            Cancel
+          </Button>
+        </div>
+      </Dialog>
+
+      <Dialog
         open={approveOpen}
         busy={busy}
         title="Approve and create mock incident"
@@ -248,6 +409,7 @@ export function ReviewPanel({
       >
         <p>Effective priority: {request.edits?.priority ?? local.priority}</p>
         <p>Effective reply: {request.edits?.reply_draft ?? local.replyDraft}</p>
+        {local.comment ? <p>Comment: {local.comment}</p> : null}
         <p>This creates one mock incident after the API accepts the review. No real ticket is opened.</p>
         <div className={styles.dialogActions}>
           <Button loading={busy} onClick={() => onSubmit(buildReviewRequest(caseData, local, "approve"))}>
@@ -263,15 +425,15 @@ export function ReviewPanel({
       >
         <TextArea
           label="Reason (optional)"
-          value={comment}
-          onChange={(event) => setComment(event.target.value)}
+          value={rejectComment}
+          onChange={(event) => setRejectComment(event.target.value)}
         />
         <p>Rejection will not create a mock incident.</p>
         <div className={styles.dialogActions}>
           <Button
             variant="danger"
             loading={busy}
-            onClick={() => onSubmit(buildReviewRequest(caseData, local, "reject", comment))}
+            onClick={() => onSubmit(buildReviewRequest(caseData, local, "reject", rejectComment))}
           >
             Confirm rejection
           </Button>

@@ -6,7 +6,9 @@ from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
 
-from app.domain.contracts import ActorType, AuditEvent, Review, ReviewDecision
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.domain.contracts import ActorType, AuditEvent, Priority, Review, ReviewDecision
 from app.persistence.repositories import CaseRepository
 
 
@@ -16,6 +18,18 @@ class CaseNotFoundError(Exception):
 
 class ReviewConflictError(Exception):
     """Raised when a review attempt conflicts with current version, state, or idempotency."""
+
+
+class ReviewDraftInput(BaseModel):
+    """Input parameters for saving an in-progress review draft."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    actor: str = Field(min_length=1, max_length=255)
+    priority: Priority | None = None
+    reply_draft: str | None = Field(default=None, max_length=4_000)
+    requester_facts: list[str] | None = None
+    comment: str | None = Field(default=None, max_length=2_000)
 
 
 def _review_fingerprint(review: Review) -> str:
@@ -90,6 +104,7 @@ class ReviewService:
             state["idempotency_key"] = idempotency_key
             state["review_fingerprint"] = fingerprint
             state["review"] = review.model_dump(mode="json")
+            state["review_draft"] = None
             self._repository.save_workflow_state(case_id, state, commit=False)
             self._repository.commit()
             return state
@@ -175,6 +190,147 @@ class ReviewService:
             name=name,
             input_summary="review_input=metadata_only",
             output_summary=f"decision={review.decision.value}; approval_id={review.id}",
+            correlation_id=uuid4(),
+        )
+        self._repository.add_audit_event(event, commit=commit)
+
+    def save_draft(
+        self,
+        case_id: UUID,
+        draft: ReviewDraftInput,
+        *,
+        expected_draft_version: int | None = None,
+    ) -> dict[str, object]:
+        """Save operator draft edits without deciding approve or reject."""
+        state = self._repository.load_workflow_state_for_update(case_id)
+        if state is None:
+            raise CaseNotFoundError("case not found")
+
+        current_status = state.get("status")
+        if current_status in {"completed", "rejected"}:
+            raise ReviewConflictError(
+                f"case is in terminal state '{current_status}' and cannot save drafts"
+            )
+        if current_status != "awaiting_human_review":
+            raise ReviewConflictError(
+                f"case is in state '{current_status}' and is not ready for review"
+            )
+
+        current_draft = state.get("review_draft")
+        current_draft_version = (
+            int(str(current_draft.get("draft_version", 0)))
+            if isinstance(current_draft, dict)
+            else int(str(state.get("review_draft_version", 0)))
+        )
+
+        if expected_draft_version is not None and expected_draft_version != current_draft_version:
+            raise ReviewConflictError(
+                f"draft version mismatch: expected {expected_draft_version}, "
+                f"got {current_draft_version}"
+            )
+
+        new_draft_version = current_draft_version + 1
+        now_iso = datetime.now(UTC).isoformat()
+        draft_dict: dict[str, object] = {
+            "actor": draft.actor,
+            "priority": draft.priority.value if draft.priority else None,
+            "reply_draft": draft.reply_draft,
+            "requester_facts": draft.requester_facts,
+            "comment": draft.comment,
+            "draft_version": new_draft_version,
+            "saved_at": now_iso,
+        }
+        state["review_draft"] = draft_dict
+
+        try:
+            self._add_draft_event(
+                case_id,
+                draft.actor,
+                "draft_saved",
+                "human_draft",
+                f"draft_version={new_draft_version}; priority={draft_dict['priority']}",
+                commit=False,
+            )
+            self._repository.save_workflow_state(case_id, state, commit=False)
+            self._repository.commit()
+            return state
+        except Exception:
+            self._repository.rollback()
+            raise
+
+    def reset_draft(
+        self,
+        case_id: UUID,
+        *,
+        actor: str,
+        expected_draft_version: int | None = None,
+    ) -> dict[str, object]:
+        """Reset saved review draft and revert to initial AI brief."""
+        state = self._repository.load_workflow_state_for_update(case_id)
+        if state is None:
+            raise CaseNotFoundError("case not found")
+
+        current_status = state.get("status")
+        if current_status in {"completed", "rejected"}:
+            raise ReviewConflictError(
+                f"case is in terminal state '{current_status}' and cannot reset drafts"
+            )
+        if current_status != "awaiting_human_review":
+            raise ReviewConflictError(
+                f"case is in state '{current_status}' and is not ready for review"
+            )
+
+        current_draft = state.get("review_draft")
+        current_draft_version = (
+            int(str(current_draft.get("draft_version", 0)))
+            if isinstance(current_draft, dict)
+            else int(str(state.get("review_draft_version", 0)))
+        )
+        if expected_draft_version is not None and expected_draft_version != current_draft_version:
+            raise ReviewConflictError(
+                f"draft version mismatch: expected {expected_draft_version}, "
+                f"got {current_draft_version}"
+            )
+
+        state["review_draft"] = None
+        state["review_draft_version"] = current_draft_version + 1
+
+        try:
+            self._add_draft_event(
+                case_id,
+                actor,
+                "draft_reset",
+                "human_draft",
+                "draft reverted to initial AI brief",
+                commit=False,
+            )
+            self._repository.save_workflow_state(case_id, state, commit=False)
+            self._repository.commit()
+            return state
+        except Exception:
+            self._repository.rollback()
+            raise
+
+    def _add_draft_event(
+        self,
+        case_id: UUID,
+        actor: str,
+        event_type: str,
+        name: str,
+        output_summary: str,
+        *,
+        commit: bool = True,
+    ) -> None:
+        event = AuditEvent(
+            case_id=case_id,
+            sequence=1,
+            timestamp=datetime.now(UTC),
+            event_type=event_type,
+            actor_type=ActorType.OPERATOR,
+            actor_id=actor,
+            name=name,
+            input_summary="draft_input=metadata_only",
+            output_summary=output_summary[:2_000],
             correlation_id=uuid4(),
         )
         self._repository.add_audit_event(event, commit=commit)
