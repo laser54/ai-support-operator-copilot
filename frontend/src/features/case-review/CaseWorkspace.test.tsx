@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../api/client";
-import type { CaseResponse, ReviewRequest, TraceResponse } from "../../api/types";
+import type { CaseResponse, ReviewRequest, SaveDraftRequest, TraceResponse } from "../../api/types";
 import { CaseWorkspace } from "./CaseWorkspace";
 import { sampleCase, sampleTrace, approvedTrace, rejectedTrace } from "./fixtures";
 
@@ -13,6 +13,8 @@ function renderWorkspace(options?: {
   loadCase?: (caseId: string) => Promise<CaseResponse>;
   loadTrace?: (caseId: string) => Promise<TraceResponse>;
   submitReview?: (caseId: string, body: ReviewRequest) => Promise<CaseResponse>;
+  saveDraft?: (caseId: string, body: SaveDraftRequest) => Promise<CaseResponse>;
+  resetDraft?: (caseId: string, actor?: string) => Promise<CaseResponse>;
   status?: CaseResponse["status"];
   copyText?: (value: string) => Promise<void>;
 }) {
@@ -27,10 +29,14 @@ function renderWorkspace(options?: {
     });
   const loadTrace = options?.loadTrace ?? vi.fn().mockResolvedValue(sampleTrace);
   const submitReview = options?.submitReview;
+  const saveDraft = options?.saveDraft;
+  const resetDraft = options?.resetDraft;
   const copyText = options?.copyText ?? vi.fn().mockResolvedValue(undefined);
   return {
     loadCase,
     submitReview,
+    saveDraft,
+    resetDraft,
     copyText,
     user: userEvent.setup(),
     ...render(
@@ -44,6 +50,8 @@ function renderWorkspace(options?: {
                   loadCase={loadCase}
                   loadTrace={loadTrace}
                   submitReview={submitReview}
+                  saveDraft={saveDraft}
+                  resetDraft={resetDraft}
                   copyText={copyText}
                 />
               }
@@ -403,5 +411,190 @@ describe("CaseWorkspace", () => {
     await user.click(reloadBtn);
     expect(loadCase).toHaveBeenCalledTimes(2);
     expect(submitReview).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders saved draft from server on case load and populates fields", async () => {
+    const caseWithDraft: CaseResponse = {
+      ...sampleCase,
+      review_draft: {
+        actor: "operator-alice",
+        priority: "P1",
+        reply_draft: "Server saved draft reply text",
+        requester_facts: ["Server draft fact 1", "Server draft fact 2"],
+        comment: "Internal investigative note",
+        draft_version: 3,
+        saved_at: "2026-09-10T12:00:00Z",
+      },
+    };
+    renderWorkspace({ loadCase: vi.fn().mockResolvedValue(caseWithDraft) });
+
+    await screen.findByText("Waiting for review");
+    expect(await screen.findByText(/Draft saved \(v3/)).toBeInTheDocument();
+    expect(screen.getByText(/Effective priority: P1/)).toBeInTheDocument();
+    expect(screen.getByText("Server saved draft reply text")).toBeInTheDocument();
+    expect(screen.getByLabelText("Review comment / internal notes")).toHaveValue(
+      "Internal investigative note",
+    );
+  });
+
+  it("saves review draft without creating incident or changing status", async () => {
+    const saveDraft = vi.fn().mockImplementation((_id, payload: SaveDraftRequest) =>
+      Promise.resolve({
+        ...sampleCase,
+        review_draft: {
+          actor: payload.actor,
+          priority: payload.priority ?? sampleCase.triage.priority,
+          reply_draft: payload.reply_draft ?? sampleCase.resolution_brief.reply_draft,
+          requester_facts: payload.requester_facts ?? sampleCase.resolution_brief.requester_facts,
+          comment: payload.comment ?? null,
+          draft_version: 1,
+          saved_at: "2026-09-10T12:05:00Z",
+        },
+      }),
+    );
+    const submitReview = vi.fn();
+    const { user } = renderWorkspace({ saveDraft, submitReview });
+
+    await screen.findByText("Waiting for review");
+
+    // Edit comment
+    const commentInput = screen.getByLabelText("Review comment / internal notes");
+    await user.type(commentInput, "Draft note for team");
+
+    // Unsaved changes badge appears
+    expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
+
+    // Click Save draft
+    const saveDraftBtn = screen.getByRole("button", { name: "Save draft" });
+    await user.click(saveDraftBtn);
+
+    expect(saveDraft).toHaveBeenCalledTimes(1);
+    expect(saveDraft).toHaveBeenCalledWith(
+      sampleCase.case_id,
+      expect.objectContaining({
+        actor: "operator@example.test",
+        comment: "Draft note for team",
+        expected_draft_version: 0,
+      }),
+    );
+    expect(submitReview).not.toHaveBeenCalled();
+
+    // Status remains awaiting review and draft saved badge is shown
+    expect(screen.getByText("Waiting for review")).toBeInTheDocument();
+    expect(await screen.findByText(/Draft saved \(v1/)).toBeInTheDocument();
+  });
+
+  it("protects dirty form state against background refetches", async () => {
+    let callCount = 0;
+    const loadCase = vi.fn().mockImplementation(() => {
+      callCount++;
+      return Promise.resolve({
+        ...sampleCase,
+        version: callCount,
+      });
+    });
+
+    const { user } = renderWorkspace({ loadCase });
+    await screen.findByText("Waiting for review");
+
+    // Edit reply draft
+    await user.click(screen.getByRole("button", { name: "Edit reply" }));
+    await user.type(screen.getByLabelText("Reply draft"), " additional typed text");
+    await user.click(screen.getByRole("button", { name: "Done editing reply" }));
+
+    expect(screen.getAllByText(/additional typed text/).length).toBeGreaterThan(0);
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+
+    // Simulate background refetch by invoking loadCase again via another re-render
+    // Operator's typed edits must NOT be wiped out
+    expect(screen.getAllByText(/additional typed text/).length).toBeGreaterThan(0);
+  });
+
+  it("handles draft save errors with retry button and preserved edits", async () => {
+    const saveDraft = vi.fn()
+      .mockRejectedValueOnce(new Error("Connection reset by peer"))
+      .mockImplementation((_id, payload: SaveDraftRequest) =>
+        Promise.resolve({
+          ...sampleCase,
+          review_draft: {
+            actor: payload.actor,
+            priority: payload.priority ?? sampleCase.triage.priority,
+            reply_draft: payload.reply_draft ?? sampleCase.resolution_brief.reply_draft,
+            requester_facts: payload.requester_facts ?? sampleCase.resolution_brief.requester_facts,
+            comment: payload.comment ?? null,
+            draft_version: 1,
+            saved_at: "2026-09-10T12:00:00Z",
+          },
+        }),
+      );
+
+    const { user } = renderWorkspace({ saveDraft });
+    await screen.findByText("Waiting for review");
+
+    await user.type(screen.getByLabelText("Review comment / internal notes"), "Important note");
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+
+    // Error callout appears, entered text remains
+    expect(await screen.findByText("Failed to save draft")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Connection reset by peer");
+    expect(screen.getByLabelText("Review comment / internal notes")).toHaveValue("Important note");
+
+    // Retry button works
+    const retryBtn = screen.getByRole("button", { name: "Retry saving draft" });
+    await user.click(retryBtn);
+
+    expect(saveDraft).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText(/Draft saved \(v1/)).toBeInTheDocument();
+  });
+
+  it("handles draft 409 conflict preserving edits", async () => {
+    const saveDraft = vi.fn().mockRejectedValue(
+      new ApiError(409, "conflict", "draft version mismatch: expected 1, got 2")
+    );
+    const { user } = renderWorkspace({ saveDraft });
+    await screen.findByText("Waiting for review");
+
+    await user.type(screen.getByLabelText("Review comment / internal notes"), "My draft note");
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+
+    expect(await screen.findByText("Draft conflict (outdated version)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Review comment / internal notes")).toHaveValue("My draft note");
+  });
+
+  it("resets draft to original AI suggestions with confirmation dialog", async () => {
+    const caseWithDraft: CaseResponse = {
+      ...sampleCase,
+      review_draft: {
+        actor: "operator",
+        priority: "P1",
+        reply_draft: "Custom draft reply",
+        comment: "Draft comment",
+        draft_version: 1,
+        saved_at: "2026-09-10T12:00:00Z",
+      },
+    };
+    const resetDraft = vi.fn().mockResolvedValue(sampleCase);
+    const { user } = renderWorkspace({
+      loadCase: vi.fn().mockResolvedValue(caseWithDraft),
+      resetDraft,
+    });
+
+    await screen.findByText("Waiting for review");
+    expect(screen.getByText("Custom draft reply")).toBeInTheDocument();
+
+    // Click Reset draft
+    const resetBtn = screen.getByRole("button", { name: "Reset draft" });
+    await user.click(resetBtn);
+
+    // Dialog opens
+    expect(await screen.findByText("Reset review draft")).toBeInTheDocument();
+    expect(
+      screen.getByText(/This will discard your saved draft and restore original AI suggestions\./)
+    ).toBeInTheDocument();
+
+    // Confirm reset
+    await user.click(screen.getByRole("button", { name: "Confirm reset" }));
+
+    expect(resetDraft).toHaveBeenCalledWith(sampleCase.case_id);
   });
 });

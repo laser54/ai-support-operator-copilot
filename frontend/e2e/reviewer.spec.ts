@@ -190,3 +190,63 @@ test("has no critical or serious accessibility findings on the demo path", async
     workspace.violations.filter((item) => item.impact === "critical" || item.impact === "serious"),
   ).toEqual([]);
 });
+
+test("saves review draft, persists across full page reload, and resets to AI suggestions", async ({
+  page,
+}) => {
+  await createDemoCase(page);
+  await expect(page.getByText("Waiting for review")).toBeVisible();
+  await expect(page.getByText("Initial AI suggestions")).toBeVisible();
+
+  // 1. Edit analysis (priority)
+  await page.getByRole("button", { name: "Edit analysis" }).click();
+  await page.getByLabel("Priority").selectOption("P2");
+  await page.getByRole("button", { name: "Done editing analysis" }).click();
+
+  // 2. Edit reply draft
+  await page.getByRole("button", { name: "Edit reply", exact: true }).click();
+  await page.getByLabel("Reply draft").fill("Drafting reply: investigating portal timeout.");
+  await page.getByRole("button", { name: "Done editing reply" }).click();
+
+  // 3. Add review comment / internal notes
+  await page
+    .getByLabel("Review comment / internal notes")
+    .fill("Waiting on backend logs before final decision.");
+
+  // Unsaved changes indicator appears
+  await expect(page.getByText("Unsaved changes")).toBeVisible();
+
+  // 4. Click Save draft
+  await page.getByRole("button", { name: "Save draft" }).click();
+
+  // Draft saved indicator appears
+  await expect(page.getByText(/Draft saved \(v1/)).toBeVisible();
+  await expect(page.getByText("Unsaved changes")).toHaveCount(0);
+
+  // Status must remain Waiting for review, and no incident created
+  await expect(page.getByText("Waiting for review")).toBeVisible();
+  await expect(page.getByText("MOCK-1")).toHaveCount(0);
+
+  // 5. Reload the page (simulating browser reload / reopening URL)
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Case workspace" })).toBeVisible();
+
+  // Verify saved draft survives page reload
+  await expect(page.getByText(/Draft saved \(v1/)).toBeVisible();
+  await expect(page.getByText("Effective priority: P2 (AI suggested P1)")).toBeVisible();
+  await expect(page.getByText("Drafting reply: investigating portal timeout.")).toBeVisible();
+  await expect(page.getByLabel("Review comment / internal notes")).toHaveValue(
+    "Waiting on backend logs before final decision.",
+  );
+
+  // 6. Reset draft via Reset draft button and dialog
+  await page.getByRole("button", { name: "Reset draft" }).click();
+  await expect(page.getByRole("dialog", { name: "Reset review draft" })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm reset" }).click();
+
+  // Verify form reverts to initial AI suggestions
+  await expect(page.getByText("Initial AI suggestions")).toBeVisible();
+  await expect(page.getByText("Effective priority: P1")).toBeVisible();
+  await expect(page.getByText(/We have recorded the access incident/).first()).toBeVisible();
+  await expect(page.getByLabel("Review comment / internal notes")).toHaveValue("");
+});

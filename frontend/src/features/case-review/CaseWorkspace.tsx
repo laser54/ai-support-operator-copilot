@@ -18,7 +18,7 @@ import { Link, useParams } from "react-router";
 import { ApiError } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
 import { getApiBaseUrl, getCasesApi } from "../../api/runtime";
-import type { CaseResponse, ReviewRequest, TraceResponse } from "../../api/types";
+import type { CaseResponse, ReviewRequest, SaveDraftRequest, TraceResponse } from "../../api/types";
 import { ContextCard } from "../../components/patterns/ContextCard";
 import { ConfidenceMeter } from "../../components/patterns/ConfidenceMeter";
 import { TaskRows } from "../../components/patterns/TaskRows";
@@ -37,6 +37,8 @@ type Loaders = {
   loadCase?: (caseId: string) => Promise<CaseResponse>;
   loadTrace?: (caseId: string) => Promise<TraceResponse>;
   submitReview?: (caseId: string, body: ReviewRequest) => Promise<CaseResponse>;
+  saveDraft?: (caseId: string, body: SaveDraftRequest) => Promise<CaseResponse>;
+  resetDraft?: (caseId: string, actor?: string) => Promise<CaseResponse>;
   copyText?: (value: string) => Promise<void>;
 };
 
@@ -45,7 +47,14 @@ function scrollToSection(id: string) {
   document.getElementById(id)?.focus();
 }
 
-export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: Loaders) {
+export function CaseWorkspace({
+  loadCase,
+  loadTrace,
+  submitReview,
+  saveDraft,
+  resetDraft,
+  copyText,
+}: Loaders) {
   const { caseId = "" } = useParams();
   const [copyReplyState, setCopyReplyState] = useState<"idle" | "success" | "error">("idle");
   const [copyReplyError, setCopyReplyError] = useState<string | null>(null);
@@ -59,6 +68,24 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
   const reviewMutation = useMutation({
     mutationFn: (body: ReviewRequest) =>
       (submitReview ?? ((id, payload) => getCasesApi().review(id, payload)))(caseId, body),
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.case(caseId), data);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.caseTrace(caseId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.casesAll() });
+    },
+  });
+  const saveDraftMutation = useMutation({
+    mutationFn: (body: SaveDraftRequest) =>
+      (saveDraft ?? ((id, payload) => getCasesApi().saveDraft(id, payload)))(caseId, body),
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.case(caseId), data);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.caseTrace(caseId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.casesAll() });
+    },
+  });
+  const resetDraftMutation = useMutation({
+    mutationFn: () =>
+      (resetDraft ?? ((id) => getCasesApi().resetDraft(id)))(caseId),
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.case(caseId), data);
       void queryClient.invalidateQueries({ queryKey: queryKeys.caseTrace(caseId) });
@@ -444,6 +471,14 @@ export function CaseWorkspace({ loadCase, loadTrace, submitReview, copyText }: L
               executionTraceHref={executionEvent ? `#${eventAnchorId(executionEvent)}` : "#trace"}
               onReload={() => void caseQuery.refetch()}
               onSubmit={(body) => reviewMutation.mutate(body)}
+              onSaveDraft={(body) => saveDraftMutation.mutate(body)}
+              onResetDraft={() => resetDraftMutation.mutate()}
+              draftBusy={saveDraftMutation.isPending || resetDraftMutation.isPending}
+              draftError={saveDraftMutation.error?.message ?? resetDraftMutation.error?.message}
+              draftConflict={
+                saveDraftMutation.error instanceof ApiError &&
+                saveDraftMutation.error.status === 409
+              }
             />
           </section>
         </div>

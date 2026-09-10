@@ -7,6 +7,7 @@ import type {
   CaseResponse,
   CreateCaseRequest,
   ReviewRequest,
+  SaveDraftRequest,
   TraceResponse,
 } from "../src/api/types";
 import { sampleCase, sampleTrace } from "../src/features/case-review/fixtures";
@@ -15,7 +16,7 @@ const API = "http://127.0.0.1:8000";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
   "Access-Control-Allow-Headers": "Accept,Content-Type",
 };
 
@@ -98,6 +99,7 @@ function applyReview(store: Store, body: ReviewRequest): CaseResponse {
   );
   addEvent(store, "action_approved", "policy_gate", summary);
   addEvent(store, "action_executed", "execute_mock_incident", summary);
+  store.case.review_draft = null;
   store.updated_at = new Date().toISOString();
   return store.case;
 }
@@ -113,6 +115,66 @@ export async function installMockApi(page: Page) {
 
     if (method === "OPTIONS") {
       await route.fulfill({ status: 204, headers: CORS });
+      return;
+    }
+
+    const draftMatch = path.match(/^\/cases\/([^/]+)\/draft$/);
+    if (method === "PUT" && draftMatch) {
+      const store = cases.get(draftMatch[1] ?? "");
+      if (!store) {
+        await route.fulfill(
+          json(404, { error: { code: "not_found", message: "case not found" } }),
+        );
+        return;
+      }
+      const body = request.postDataJSON() as SaveDraftRequest;
+      const currentDraftVersion = store.case.review_draft?.draft_version ?? 0;
+      if (
+        body.expected_draft_version !== undefined &&
+        body.expected_draft_version !== null &&
+        body.expected_draft_version !== currentDraftVersion
+      ) {
+        await route.fulfill(
+          json(409, {
+            error: {
+              code: "conflict",
+              message: `draft version mismatch: expected ${body.expected_draft_version}, got ${currentDraftVersion}`,
+            },
+          }),
+        );
+        return;
+      }
+      const newVersion = currentDraftVersion + 1;
+      store.case.review_draft = {
+        actor: body.actor,
+        priority: body.priority ?? store.case.triage.priority,
+        reply_draft: body.reply_draft ?? store.case.resolution_brief.reply_draft,
+        requester_facts: body.requester_facts ?? store.case.resolution_brief.requester_facts,
+        comment: body.comment ?? null,
+        draft_version: newVersion,
+        saved_at: new Date().toISOString(),
+      };
+      addEvent(
+        store,
+        "draft_saved",
+        "human_draft",
+        `draft_version=${newVersion}; priority=${store.case.review_draft.priority}`,
+      );
+      await route.fulfill(json(200, store.case));
+      return;
+    }
+
+    if (method === "DELETE" && draftMatch) {
+      const store = cases.get(draftMatch[1] ?? "");
+      if (!store) {
+        await route.fulfill(
+          json(404, { error: { code: "not_found", message: "case not found" } }),
+        );
+        return;
+      }
+      store.case.review_draft = null;
+      addEvent(store, "draft_reset", "human_draft", "draft reverted to initial AI brief");
+      await route.fulfill(json(200, store.case));
       return;
     }
 

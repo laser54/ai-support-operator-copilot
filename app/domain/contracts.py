@@ -157,6 +157,20 @@ class Review(BaseModel):
     reviewed_at: datetime
 
 
+class ReviewDraft(BaseModel):
+    """Persistable in-progress human review draft without a final decision."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    actor: str = Field(min_length=1, max_length=255)
+    priority: Priority | None = None
+    reply_draft: str | None = Field(default=None, max_length=4_000)
+    requester_facts: list[Annotated[str, Field(min_length=1, max_length=1_000)]] | None = None
+    comment: str | None = Field(default=None, max_length=2_000)
+    draft_version: int = Field(default=1, ge=1)
+    saved_at: datetime
+
+
 class AuditEvent(BaseModel):
     """Ordered, safe summary of a workflow, tool, review, or execution event."""
 
@@ -216,3 +230,4 @@ class Case(BaseModel):
     proposed_actions: list[ProposedAction] = Field(default_factory=list)
     final_reply: str | None = Field(default=None, max_length=4_000)
     review: Review | None = None
+    review_draft: ReviewDraft | None = None

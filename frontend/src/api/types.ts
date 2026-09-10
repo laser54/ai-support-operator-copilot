@@ -78,6 +78,29 @@ export type ReviewRecord = {
   edits?: ReviewEdits;
 };
 
+export type ReviewDraftRecord = {
+  actor: string;
+  priority?: Priority | null;
+  reply_draft?: string | null;
+  requester_facts?: string[] | null;
+  comment?: string | null;
+  draft_version: number;
+  saved_at: string;
+};
+
+export type SaveDraftRequest = {
+  actor: string;
+  priority?: Priority | null;
+  reply_draft?: string | null;
+  requester_facts?: string[] | null;
+  comment?: string | null;
+  expected_draft_version?: number | null;
+};
+
+export type ResetDraftRequest = {
+  actor?: string;
+};
+
 export type CaseResponse = {
   case_id: string;
   status: CaseStatus;
@@ -90,6 +113,7 @@ export type CaseResponse = {
   fallback_reason: string | null;
   model: string | null;
   review?: ReviewRecord | null;
+  review_draft?: ReviewDraftRecord | null;
 };
 
 export type CreateCaseRequest = {

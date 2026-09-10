@@ -22,7 +22,7 @@ from app.llm.service import TriageAndBriefService
 from app.persistence.database import get_session
 from app.persistence.repositories import CaseRepository
 from app.rate_limit import IntakeRateLimiter, client_id_from_request
-from app.review import CaseNotFoundError, ReviewConflictError, ReviewService
+from app.review import CaseNotFoundError, ReviewConflictError, ReviewDraftInput, ReviewService
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -51,6 +51,7 @@ class CaseResponse(BaseModel):
     fallback_reason: str | None = None
     model: str | None = None
     review: dict[str, object] | None = None
+    review_draft: dict[str, object] | None = None
 
 
 class ReviewRequest(BaseModel):
@@ -70,6 +71,23 @@ class ReviewRequest(BaseModel):
         min_length=1,
         max_length=255,
         description="Unique client-provided key ensuring idempotent review processing.",
+    )
+
+
+class SaveDraftRequest(BaseModel):
+    """Operator draft edits to save without submitting a final decision."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    actor: str = Field(min_length=1, max_length=255)
+    priority: Priority | None = None
+    reply_draft: str | None = Field(default=None, max_length=4_000)
+    requester_facts: list[str] | None = None
+    comment: str | None = Field(default=None, max_length=2_000)
+    expected_draft_version: int | None = Field(
+        default=None,
+        ge=0,
+        description="Optimistic locking draft version. None/0 matches initial state.",
     )
 
 
@@ -93,6 +111,9 @@ def _response(state: dict[str, object]) -> CaseResponse:
         fallback_reason=str(state["fallback_reason"]) if state.get("fallback_reason") else None,
         model=str(state["model"]) if state.get("model") else None,
         review=cast(dict[str, object], state["review"]) if state.get("review") else None,
+        review_draft=cast(dict[str, object], state["review_draft"])
+        if state.get("review_draft")
+        else None,
     )
 
 
@@ -231,6 +252,47 @@ def review_case(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    return _response(state)
+
+
+@router.put("/{case_id}/draft", response_model=CaseResponse)
+def save_draft(
+    case_id: UUID, payload: SaveDraftRequest, session: Session = Depends(get_session)
+) -> CaseResponse:
+    """Save human review draft without submitting a decision."""
+    draft_input = ReviewDraftInput(
+        actor=payload.actor,
+        priority=payload.priority,
+        reply_draft=payload.reply_draft,
+        requester_facts=payload.requester_facts,
+        comment=payload.comment,
+    )
+    try:
+        state = ReviewService(CaseRepository(session)).save_draft(
+            case_id,
+            draft_input,
+            expected_draft_version=payload.expected_draft_version,
+        )
+    except CaseNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except ReviewConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    return _response(state)
+
+
+@router.delete("/{case_id}/draft", response_model=CaseResponse)
+def reset_draft(
+    case_id: UUID,
+    actor: str = Query(default="operator", min_length=1, max_length=255),
+    session: Session = Depends(get_session),
+) -> CaseResponse:
+    """Reset saved review draft back to initial AI brief."""
+    try:
+        state = ReviewService(CaseRepository(session)).reset_draft(case_id, actor=actor)
+    except CaseNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except ReviewConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
     return _response(state)
 
 

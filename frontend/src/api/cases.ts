@@ -5,6 +5,7 @@ import type {
   CaseQueueResponse,
   CaseResponse,
   ReviewRequest,
+  SaveDraftRequest,
   TraceResponse,
 } from "./types";
 
@@ -30,6 +31,14 @@ export function createCasesApi(client: ApiClient) {
     },
     review(caseId: string, body: ReviewRequest) {
       return client.post<CaseResponse>(`/cases/${caseId}/review`, body);
+    },
+    saveDraft(caseId: string, body: SaveDraftRequest) {
+      return client.put<CaseResponse>(`/cases/${caseId}/draft`, body);
+    },
+    resetDraft(caseId: string, actor: string = "operator") {
+      return client.delete<CaseResponse>(
+        `/cases/${caseId}/draft?actor=${encodeURIComponent(actor)}`,
+      );
     },
     trace(caseId: string) {
       return client.get<TraceResponse>(`/cases/${caseId}/trace`);
