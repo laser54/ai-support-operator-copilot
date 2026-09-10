@@ -5,10 +5,10 @@ from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.domain.contracts import (
     AuditEvent,
     CaseStatus,
@@ -35,6 +35,24 @@ class CreateCaseRequest(BaseModel):
     request_text: str = Field(min_length=1, max_length=10_000)
 
 
+class AddClarificationRequest(BaseModel):
+    """Add supplementary context to a case and re-trigger analysis."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1, max_length=10_000)
+    author: str = Field(default="requester", min_length=1, max_length=255)
+    idempotency_key: str | None = Field(default=None, min_length=1, max_length=255)
+    discard_draft: bool = Field(default=True)
+
+    @field_validator("text")
+    @classmethod
+    def validate_non_empty(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("clarification text cannot be empty or blank")
+        return value
+
+
 class CaseResponse(BaseModel):
     """Persisted workflow state exposed by the API."""
 
@@ -52,6 +70,9 @@ class CaseResponse(BaseModel):
     model: str | None = None
     review: dict[str, object] | None = None
     review_draft: dict[str, object] | None = None
+    clarifications: list[dict[str, object]] = Field(default_factory=list)
+    revisions: list[dict[str, object]] = Field(default_factory=list)
+    current_revision: int = Field(default=1, ge=1)
 
 
 class ReviewRequest(BaseModel):
@@ -99,6 +120,23 @@ class TraceResponse(BaseModel):
 
 
 def _response(state: dict[str, object]) -> CaseResponse:
+    revisions = cast(list[dict[str, object]], state.get("revisions"))
+    if not revisions:
+        revisions = [
+            {
+                "revision_number": 1,
+                "created_at": str(state.get("created_at") or datetime.now(UTC).isoformat()),
+                "triggered_by": "intake",
+                "clarification_id": None,
+                "triage": state.get("triage") or {},
+                "evidence": state.get("evidence") or [],
+                "resolution_brief": state.get("resolution_brief") or {},
+                "provider": str(state.get("provider") or "deterministic_fallback"),
+                "fallback_reason": state.get("fallback_reason"),
+                "model": state.get("model"),
+            }
+        ]
+
     return CaseResponse(
         case_id=UUID(str(state["case_id"])),
         status=str(state["status"]),
@@ -114,6 +152,9 @@ def _response(state: dict[str, object]) -> CaseResponse:
         review_draft=cast(dict[str, object], state["review_draft"])
         if state.get("review_draft")
         else None,
+        clarifications=cast(list[dict[str, object]], state.get("clarifications") or []),
+        revisions=revisions,
+        current_revision=int(str(state.get("current_revision", len(revisions)))),
     )
 
 
@@ -206,13 +247,14 @@ def create_case(
     payload: CreateCaseRequest,
     request: Request,
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
 ) -> CaseResponse:
     """Create a case and run it until the mandatory human review gate."""
     limiter = cast(IntakeRateLimiter, request.app.state.intake_rate_limiter)
     limiter.check(client_id_from_request(request))
 
     repository = CaseRepository(session)
-    workflow = CaseWorkflow(repository, TriageAndBriefService(get_settings()))
+    workflow = CaseWorkflow(repository, TriageAndBriefService(settings))
     return _response(workflow.run(payload.request_text))
 
 
@@ -298,6 +340,34 @@ def reset_draft(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
     except ReviewConflictError as error:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    return _response(state)
+
+
+@router.post("/{case_id}/clarifications", response_model=CaseResponse)
+def add_clarification(
+    case_id: UUID,
+    payload: AddClarificationRequest,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+) -> CaseResponse:
+    """Add clarification from requester and re-analyze the case."""
+    workflow = CaseWorkflow(CaseRepository(session), TriageAndBriefService(settings))
+    try:
+        state = workflow.reanalyze(
+            case_id,
+            clarification_text=payload.text,
+            author=payload.author,
+            idempotency_key=payload.idempotency_key,
+            discard_draft=payload.discard_draft,
+        )
+    except CaseNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except ReviewConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
     return _response(state)
 
 

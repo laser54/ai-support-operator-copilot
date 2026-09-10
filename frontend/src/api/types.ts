@@ -102,6 +102,33 @@ export type ResetDraftRequest = {
   expected_draft_version?: number | null;
 };
 
+export type ClarificationRecord = {
+  id: string;
+  text: string;
+  author: string;
+  created_at: string;
+};
+
+export type CaseRevisionRecord = {
+  revision_number: number;
+  created_at: string;
+  triggered_by: string;
+  clarification_id?: string | null;
+  triage: Triage;
+  evidence: Evidence[];
+  resolution_brief: ResolutionBrief;
+  provider: string;
+  fallback_reason?: string | null;
+  model?: string | null;
+};
+
+export type AddClarificationRequest = {
+  text: string;
+  author?: string;
+  idempotency_key?: string | null;
+  discard_draft?: boolean;
+};
+
 export type CaseResponse = {
   case_id: string;
   status: CaseStatus;
@@ -115,6 +142,9 @@ export type CaseResponse = {
   model: string | null;
   review?: ReviewRecord | null;
   review_draft?: ReviewDraftRecord | null;
+  clarifications?: ClarificationRecord[];
+  revisions?: CaseRevisionRecord[];
+  current_revision?: number;
 };
 
 export type CreateCaseRequest = {

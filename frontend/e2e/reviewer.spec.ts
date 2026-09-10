@@ -111,6 +111,7 @@ test("remains usable at mobile, tablet, and desktop widths", async ({ page }) =>
     await expect(page.getByRole("heading", { name: "Case workspace" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Case workflow" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Approve and create mock incident" })).toBeVisible();
+    await expect(page.locator("body")).toHaveJSProperty("scrollWidth", width);
     await test.info().attach(`workspace-${width}`, {
       body: await page.screenshot({ fullPage: true }),
       contentType: "image/png",
@@ -249,4 +250,55 @@ test("saves review draft, persists across full page reload, and resets to AI sug
   await expect(page.getByText("Effective priority: P1")).toBeVisible();
   await expect(page.getByText(/We have recorded the access incident/).first()).toBeVisible();
   await expect(page.getByLabel("Review comment / internal notes")).toHaveValue("");
+});
+
+test("adds clarification, re-analyzes case, switches between revisions, and prompts on dirty draft", async ({
+  page,
+}) => {
+  await createDemoCase(page);
+  await expect(page.getByText("Waiting for review")).toBeVisible();
+
+  // 1. Enter supplementary clarification and submit
+  await page.getByLabel("Clarification text").fill("Issue affects only European region servers.");
+  await page.getByLabel("Author").fill("operator@example.test");
+  await page.getByRole("button", { name: "Add clarification & re-analyze" }).click();
+
+  // 2. Verify new revision and clarification entry
+  await expect(
+    page.locator("#clarifications").getByText("Issue affects only European region servers.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/operator@example\.test/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Revision 2/ })).toBeVisible();
+
+  // 3. Switch back to Rev 1 to inspect archived revision
+  await page.getByRole("button", { name: /Revision 1/ }).click();
+  await expect(page.getByText("Archived revision snapshot")).toBeVisible();
+
+  // 4. Switch back to current revision
+  await page.getByRole("button", { name: /Return to current revision/ }).click();
+  await expect(page.getByText("Archived revision snapshot")).toHaveCount(0);
+
+  // 5. Test dirty draft protection: modify review panel, then try to add clarification
+  await page.getByRole("button", { name: "Edit reply", exact: true }).click();
+  await page.getByLabel("Reply draft").fill("Unsaved draft reply before clarification");
+
+  await page.getByLabel("Clarification text").fill("Second clarification with uncommitted draft.");
+  await page.getByRole("button", { name: "Add clarification & re-analyze" }).click();
+
+  // Confirmation dialog should appear
+  await expect(page.getByRole("dialog", { name: "Unsaved review draft detected" })).toBeVisible();
+
+  // Dismiss dialog first
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("dialog", { name: "Unsaved review draft detected" })).toHaveCount(0);
+
+  // Re-open and confirm re-analysis
+  await page.getByRole("button", { name: "Add clarification & re-analyze" }).click();
+  await page.getByRole("button", { name: "Discard draft & re-analyze" }).click();
+
+  // Verify Revision 3 is created
+  await expect(page.getByRole("button", { name: /Revision 3/ })).toBeVisible();
+  await expect(
+    page.locator("#clarifications").getByText("Second clarification with uncommitted draft.", { exact: true }),
+  ).toBeVisible();
 });

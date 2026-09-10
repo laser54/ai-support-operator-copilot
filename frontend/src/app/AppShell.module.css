@@ -156,4 +156,9 @@
   .navLabelShort {
     display: none;
   }
+
+  /* Keep the primary queue and intake actions usable on narrow phones. */
+  .navLink:nth-child(2) {
+    display: none;
+  }
 }

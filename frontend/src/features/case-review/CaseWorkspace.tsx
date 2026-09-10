@@ -5,6 +5,7 @@ import {
   BookOpen,
   Check,
   Copy,
+  History,
   MessageSquareQuote,
   Pencil,
   PenLine,
@@ -18,7 +19,13 @@ import { Link, useParams } from "react-router";
 import { ApiError } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
 import { getApiBaseUrl, getCasesApi } from "../../api/runtime";
-import type { CaseResponse, ReviewRequest, SaveDraftRequest, TraceResponse } from "../../api/types";
+import type {
+  AddClarificationRequest,
+  CaseResponse,
+  ReviewRequest,
+  SaveDraftRequest,
+  TraceResponse,
+} from "../../api/types";
 import { ContextCard } from "../../components/patterns/ContextCard";
 import { ConfidenceMeter } from "../../components/patterns/ConfidenceMeter";
 import { TaskRows } from "../../components/patterns/TaskRows";
@@ -26,7 +33,10 @@ import { Badge } from "../../components/primitives/Badge";
 import { Button } from "../../components/primitives/Button";
 import { Callout } from "../../components/primitives/Callout";
 import { Card } from "../../components/primitives/Card";
+import { Dialog } from "../../components/primitives/Dialog";
 import { SectionHeading } from "../../components/primitives/SectionHeading";
+import { TextArea } from "../../components/primitives/TextArea";
+import { TextField } from "../../components/primitives/TextField";
 import { TraceTimeline } from "../trace/TraceTimeline";
 import { eventAnchorId, firstEventOfType, toolEventForSource } from "../trace/labels";
 import { ReviewPanel } from "./ReviewPanel";
@@ -39,6 +49,7 @@ type Loaders = {
   submitReview?: (caseId: string, body: ReviewRequest) => Promise<CaseResponse>;
   saveDraft?: (caseId: string, body: SaveDraftRequest) => Promise<CaseResponse>;
   resetDraft?: (caseId: string, actor?: string, expectedDraftVersion?: number | null) => Promise<CaseResponse>;
+  addClarification?: (caseId: string, body: AddClarificationRequest) => Promise<CaseResponse>;
   copyText?: (value: string) => Promise<void>;
 };
 
@@ -53,11 +64,21 @@ export function CaseWorkspace({
   submitReview,
   saveDraft,
   resetDraft,
+  addClarification,
   copyText,
 }: Loaders) {
   const { caseId = "" } = useParams();
   const [copyReplyState, setCopyReplyState] = useState<"idle" | "success" | "error">("idle");
   const [copyReplyError, setCopyReplyError] = useState<string | null>(null);
+  const [clarificationText, setClarificationText] = useState("");
+  const [clarificationAuthor, setClarificationAuthor] = useState("requester");
+  const [idempotencyKey, setIdempotencyKey] = useState(
+    () => `clarif-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+  );
+  const [reviewDirty, setReviewDirty] = useState(false);
+  const [confirmReanalysisOpen, setConfirmReanalysisOpen] = useState(false);
+  const [selectedRevisionNumber, setSelectedRevisionNumber] = useState<number | null>(null);
+
   const queryClient = useQueryClient();
   const caseQuery = useQuery({
     queryKey: queryKeys.case(caseId),
@@ -94,6 +115,22 @@ export function CaseWorkspace({
       queryClient.setQueryData(queryKeys.case(caseId), data);
       void queryClient.invalidateQueries({ queryKey: queryKeys.caseTrace(caseId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.casesAll() });
+    },
+  });
+  const addClarificationMutation = useMutation({
+    mutationFn: (body: AddClarificationRequest) =>
+      (addClarification ?? ((id, payload) => getCasesApi().addClarification(id, payload)))(
+        caseId,
+        body,
+      ),
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.case(caseId), data);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.caseTrace(caseId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.casesAll() });
+      setClarificationText("");
+      setSelectedRevisionNumber(null);
+      setIdempotencyKey(`clarif-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+      setConfirmReanalysisOpen(false);
     },
   });
   const traceQuery = useQuery({
@@ -155,6 +192,33 @@ export function CaseWorkspace({
   const policyEvent = firstEventOfType(events, "human_review_requested");
   const executionEvent = firstEventOfType(events, "action_executed");
 
+  const revisions = caseData.revisions ?? [];
+  const currentRevisionNumber = caseData.current_revision ?? revisions.length ?? 1;
+  const activeRevisionNumber = selectedRevisionNumber ?? currentRevisionNumber;
+  const activeRevision = revisions.find((r) => r.revision_number === activeRevisionNumber);
+  const isViewingArchivedRevision =
+    selectedRevisionNumber !== null && selectedRevisionNumber !== currentRevisionNumber;
+  const displayTriage = isViewingArchivedRevision && activeRevision ? activeRevision.triage : caseData.triage;
+  const displayEvidence = isViewingArchivedRevision && activeRevision ? activeRevision.evidence : caseData.evidence;
+  const displayBrief = isViewingArchivedRevision && activeRevision ? activeRevision.resolution_brief : caseData.resolution_brief;
+
+  function handleClarificationSubmit(forceDiscardDraft = false) {
+    if (!clarificationText.trim()) return;
+
+    const hasDraft = Boolean(caseData.review_draft) || reviewDirty;
+    if (hasDraft && !forceDiscardDraft) {
+      setConfirmReanalysisOpen(true);
+      return;
+    }
+
+    addClarificationMutation.mutate({
+      text: clarificationText.trim(),
+      author: clarificationAuthor.trim() || "requester",
+      idempotency_key: idempotencyKey,
+      discard_draft: true,
+    });
+  }
+
   return (
     <div className={styles.workspace}>
       <header className={styles.header}>
@@ -170,8 +234,11 @@ export function CaseWorkspace({
             <Badge tone={caseData.status === "rejected" ? "danger" : caseData.status === "completed" ? "success" : "review"}>
               {statusLabel(caseData.status)}
             </Badge>
-            <Badge>{caseData.triage.priority}</Badge>
-            <Badge tone="warning">{caseData.triage.risk} risk</Badge>
+            <Badge>
+              {displayTriage.priority}
+              {isViewingArchivedRevision ? ` (rev ${activeRevisionNumber})` : ""}
+            </Badge>
+            <Badge tone="warning">{displayTriage.risk} risk</Badge>
             <p className={styles.aiChip} data-mode={caseData.fallback_reason ? "offline" : "live"}>
               <Sparkles size={13} strokeWidth={2} aria-hidden="true" />
               {provenanceLabel(caseData)}
@@ -217,6 +284,162 @@ export function CaseWorkspace({
             </div>
           </Card>
 
+          <Card as="section" id="clarifications" tabIndex={-1}>
+            <div className={styles.cardBannerInfo}>
+              <MessageSquareQuote size={12} aria-hidden="true" />
+              <span>Clarifications & Context</span>
+            </div>
+            <SectionHeading icon={MessageSquareQuote}>
+              Clarifications ({caseData.clarifications?.length ?? 0})
+            </SectionHeading>
+
+            {caseData.clarifications && caseData.clarifications.length > 0 ? (
+              <div className={styles.clarificationsList}>
+                {caseData.clarifications.map((c) => (
+                  <div key={c.id} className={styles.clarificationItem}>
+                    <div className={styles.clarificationHeader}>
+                      <span className={styles.clarificationAuthor}>
+                        {c.author === "requester" ? "Requester" : c.author}
+                      </span>
+                      <span className={styles.clarificationTime}>
+                        {new Date(c.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <blockquote className={styles.clarificationText}>{c.text}</blockquote>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className={styles.emptyText}>No supplementary clarifications added yet.</p>
+            )}
+
+            {caseData.status === "awaiting_human_review" ? (
+              <div className={styles.clarificationForm}>
+                <h3 className={styles.clarificationFormTitle}>Add clarification & re-analyze</h3>
+                <div className={styles.formRow}>
+                  <TextField
+                    label="Author"
+                    value={clarificationAuthor}
+                    onChange={(e) => setClarificationAuthor(e.target.value)}
+                    placeholder="requester"
+                  />
+                </div>
+                <div className={styles.formRow}>
+                  <TextArea
+                    label="Clarification text"
+                    value={clarificationText}
+                    onChange={(e) => setClarificationText(e.target.value)}
+                    placeholder="Provide additional details or response to missing information..."
+                    rows={3}
+                    maxLength={10000}
+                  />
+                  <div className={styles.charCounterRow}>
+                    <span className={styles.charCounter}>
+                      {clarificationText.length} / 10,000 characters
+                    </span>
+                  </div>
+                </div>
+
+                {addClarificationMutation.isError ? (
+                  <div className={styles.clarificationErrorRow}>
+                    <Callout tone="danger" title="Re-analysis failed" icon={AlertCircle}>
+                      <p>
+                        {addClarificationMutation.error?.message ||
+                          "Could not add clarification and re-analyze."}
+                      </p>
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleClarificationSubmit(true)}
+                        disabled={addClarificationMutation.isPending}
+                      >
+                        Retry
+                      </Button>
+                    </Callout>
+                  </div>
+                ) : null}
+
+                <div className={styles.clarificationActionsRow}>
+                  <Button
+                    variant="primary"
+                    onClick={() => handleClarificationSubmit(false)}
+                    disabled={!clarificationText.trim() || addClarificationMutation.isPending}
+                  >
+                    {addClarificationMutation.isPending
+                      ? "Re-analyzing..."
+                      : "Add clarification & re-analyze"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Callout tone="info" title="Case settled">
+                <p>
+                  This case is in terminal state ({caseData.status}). Adding clarifications or
+                  re-analyzing is not permitted.
+                </p>
+              </Callout>
+            )}
+          </Card>
+
+          {revisions.length > 1 ? (
+            <div className={styles.revisionHistoryBar}>
+              <div className={styles.revisionTabsRow}>
+                <span className={styles.revisionHistoryTitle}>
+                  <History size={14} aria-hidden="true" style={{ display: "inline", marginRight: "4px" }} />
+                  Analysis Revisions ({revisions.length}):
+                </span>
+                <div className={styles.revisionTabs}>
+                  {revisions.map((rev) => {
+                    const isSelected = rev.revision_number === activeRevisionNumber;
+                    const isLatest = rev.revision_number === currentRevisionNumber;
+                    return (
+                      <button
+                        key={rev.revision_number}
+                        type="button"
+                        className={`${styles.revisionTab} ${isSelected ? styles.revisionTabActive : ""}`}
+                        onClick={() => setSelectedRevisionNumber(rev.revision_number)}
+                        aria-pressed={isSelected}
+                      >
+                        Revision {rev.revision_number}
+                        {rev.triggered_by === "intake" ? " (intake)" : " (clarification)"}
+                        <Badge tone="neutral">{rev.triage.priority}</Badge>
+                        {isLatest ? <span className={styles.latestBadge}>current</span> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {activeRevisionNumber > 1 ? (
+                <div className={styles.revisionCompareBanner}>
+                  <Sparkles size={14} aria-hidden="true" />
+                  <span>
+                    Compared with Revision {activeRevisionNumber - 1}:
+                    Priority:{" "}
+                    <strong>
+                      {revisions.find((r) => r.revision_number === activeRevisionNumber - 1)?.triage.priority ?? "—"}
+                      {" → "}
+                      {displayTriage.priority}
+                    </strong>
+                  </span>
+                </div>
+              ) : null}
+
+              {isViewingArchivedRevision ? (
+                <Callout tone="warning" title="Archived revision snapshot" icon={AlertCircle}>
+                  <p>
+                    Viewing past analysis snapshot for Revision {activeRevisionNumber}. This data is read-only.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setSelectedRevisionNumber(null)}
+                  >
+                    Return to current revision ({currentRevisionNumber})
+                  </Button>
+                </Callout>
+              ) : null}
+            </div>
+          ) : null}
+
           <section className={styles.stack} id="review" tabIndex={-1}>
             <Card tone="facts">
               <div className={styles.cardBannerFacts}>
@@ -238,9 +461,9 @@ export function CaseWorkspace({
                   </Button>
                 ) : null}
               </div>
-              {caseData.resolution_brief.requester_facts.length > 0 ? (
+              {displayBrief.requester_facts.length > 0 ? (
                 <ul className={styles.list}>
-                  {caseData.resolution_brief.requester_facts.map((fact) => (
+                  {displayBrief.requester_facts.map((fact) => (
                     <li key={fact}>{fact}</li>
                   ))}
                 </ul>
@@ -256,9 +479,9 @@ export function CaseWorkspace({
               <SectionHeading icon={Sparkles} mark={provenanceLabel(caseData)}>
                 System inferences
               </SectionHeading>
-              {caseData.resolution_brief.inferences.length > 0 ? (
+              {displayBrief.inferences.length > 0 ? (
                 <ul className={styles.list}>
-                  {caseData.resolution_brief.inferences.map((item) => (
+                  {displayBrief.inferences.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -267,9 +490,9 @@ export function CaseWorkspace({
               )}
             </Card>
             <Callout tone="warning" title="Still needed" icon={AlertCircle}>
-              {caseData.resolution_brief.missing_information.length > 0 ? (
+              {displayBrief.missing_information.length > 0 ? (
                 <ul className={styles.list}>
-                  {caseData.resolution_brief.missing_information.map((item) => (
+                  {displayBrief.missing_information.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -281,10 +504,10 @@ export function CaseWorkspace({
 
           <section className={styles.stack} id="evidence" tabIndex={-1}>
             <SectionHeading icon={BookOpen}>Evidence</SectionHeading>
-            {caseData.evidence.length === 0 ? (
+            {displayEvidence.length === 0 ? (
               <p>No fixture evidence was stored for this case.</p>
             ) : null}
-            {caseData.evidence.map((item) => {
+            {displayEvidence.map((item) => {
               const toolEvent = toolEventForSource(events, item.source_id);
               return (
                 <div key={item.source_id}>
@@ -369,15 +592,15 @@ export function CaseWorkspace({
             <div className={styles.briefContent}>
               <div className={styles.replySection}>
                 <h3 className={styles.briefSubheading}>Customer-facing reply</h3>
-                {caseData.resolution_brief.reply_draft?.trim() ? (
+                {displayBrief.reply_draft?.trim() ? (
                   <>
                     <blockquote className={styles.replyBlockquote}>
-                      {caseData.resolution_brief.reply_draft}
+                      {displayBrief.reply_draft}
                     </blockquote>
                     <div className={styles.replyActionsRow}>
                       <Button
                         variant="secondary"
-                        onClick={() => void handleCopyReply(caseData.resolution_brief.reply_draft)}
+                        onClick={() => void handleCopyReply(displayBrief.reply_draft)}
                         aria-label="Copy customer reply"
                       >
                         {copyReplyState === "success" ? (
@@ -409,9 +632,9 @@ export function CaseWorkspace({
 
               <div className={styles.actionsSection}>
                 <h3 className={styles.briefSubheading}>Proposed actions</h3>
-                {caseData.resolution_brief.proposed_actions.length > 0 ? (
+                {displayBrief.proposed_actions.length > 0 ? (
                   <div className={styles.proposedActionsList}>
-                    {caseData.resolution_brief.proposed_actions.map((action) => (
+                    {displayBrief.proposed_actions.map((action) => (
                       <div key={action.id} className={styles.actionCard}>
                         <div className={styles.actionCardHeader}>
                           <span className={styles.actionKind}>{action.kind}</span>
@@ -477,6 +700,7 @@ export function CaseWorkspace({
               onSubmit={(body) => reviewMutation.mutate(body)}
               onSaveDraft={(body) => saveDraftMutation.mutate(body)}
               onResetDraft={() => resetDraftMutation.mutate()}
+              onDirtyChange={(dirty) => setReviewDirty(dirty)}
               draftBusy={saveDraftMutation.isPending || resetDraftMutation.isPending}
               draftError={saveDraftMutation.error?.message ?? resetDraftMutation.error?.message}
               draftConflict={
@@ -487,6 +711,34 @@ export function CaseWorkspace({
           </section>
         </div>
       </div>
+
+      <Dialog
+        open={confirmReanalysisOpen}
+        busy={addClarificationMutation.isPending}
+        title="Unsaved review draft detected"
+        onClose={() => setConfirmReanalysisOpen(false)}
+      >
+        <p>
+          You have unsaved edits in the review panel or a saved review draft. Re-analyzing with
+          new clarification context will produce a new AI brief revision and reset the current draft
+          so you can evaluate fresh conclusions.
+        </p>
+        <p>Do you want to proceed and discard the draft, or cancel to review your draft?</p>
+        <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", marginTop: "1rem" }}>
+          <Button variant="secondary" onClick={() => setConfirmReanalysisOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setConfirmReanalysisOpen(false);
+              handleClarificationSubmit(true);
+            }}
+          >
+            Discard draft & re-analyze
+          </Button>
+        </div>
+      </Dialog>
 
       <details className={styles.trace} id="trace">
         <summary>

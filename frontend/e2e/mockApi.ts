@@ -1,10 +1,13 @@
 import type { Page } from "@playwright/test";
 
 import type {
+  AddClarificationRequest,
   AuditEvent,
   CaseQueueItem,
   CaseQueueResponse,
   CaseResponse,
+  CaseRevisionRecord,
+  ClarificationRecord,
   CreateCaseRequest,
   ReviewRequest,
   SaveDraftRequest,
@@ -178,6 +181,116 @@ export async function installMockApi(page: Page) {
       return;
     }
 
+    const clarificationMatch = path.match(/^\/cases\/([^/]+)\/clarifications$/);
+    if (method === "POST" && clarificationMatch) {
+      const store = cases.get(clarificationMatch[1] ?? "");
+      if (!store) {
+        await route.fulfill(
+          json(404, { error: { code: "not_found", message: "case not found" } }),
+        );
+        return;
+      }
+      if (store.case.status === "completed" || store.case.status === "rejected") {
+        await route.fulfill(
+          json(409, {
+            error: {
+              code: "conflict",
+              message: `cannot add clarification to case in terminal status: ${store.case.status}`,
+            },
+          }),
+        );
+        return;
+      }
+      const body = request.postDataJSON() as AddClarificationRequest;
+      if (!body.text || !body.text.trim()) {
+        await route.fulfill(
+          json(422, {
+            error: {
+              code: "validation_error",
+              message: "Clarification text cannot be empty or whitespace-only",
+            },
+          }),
+        );
+        return;
+      }
+
+      if (!store.case.clarifications) {
+        store.case.clarifications = [];
+      }
+      if (!store.case.revisions || store.case.revisions.length === 0) {
+        store.case.revisions = [
+          {
+            revision_number: 1,
+            created_at: store.created_at,
+            clarification_id: null,
+            clarification_text: null,
+            clarification_author: null,
+            triage: clone(store.case.triage),
+            resolution_brief: clone(store.case.resolution_brief),
+            evidence: clone(store.case.evidence),
+          },
+        ];
+        store.case.current_revision = 1;
+      }
+
+      const clarId = crypto.randomUUID();
+      const author = body.author?.trim() || "operator";
+      const clar: ClarificationRecord = {
+        id: clarId,
+        text: body.text.trim(),
+        author,
+        created_at: new Date().toISOString(),
+      };
+      store.case.clarifications.push(clar);
+
+      if (body.discard_draft) {
+        store.case.review_draft = null;
+      }
+
+      const nextRev = (store.case.current_revision ?? 1) + 1;
+      store.case.current_revision = nextRev;
+      store.case.version = (store.case.version ?? 1) + 1;
+
+      // Update triage & brief to simulate re-analysis
+      store.case.triage.priority = "P1";
+      store.case.resolution_brief.reply_draft = `Engineering is aware. Clarification added: ${body.text.trim()}`;
+
+      const newRevRecord: CaseRevisionRecord = {
+        revision_number: nextRev,
+        created_at: new Date().toISOString(),
+        clarification_id: clarId,
+        clarification_text: body.text.trim(),
+        clarification_author: author,
+        triage: clone(store.case.triage),
+        resolution_brief: clone(store.case.resolution_brief),
+        evidence: clone(store.case.evidence),
+      };
+      store.case.revisions.push(newRevRecord);
+
+      addEvent(
+        store,
+        "clarification_added",
+        "clarification",
+        `revision=${nextRev}; author=${author}`,
+      );
+      addEvent(
+        store,
+        "brief_built",
+        "build_brief",
+        `revision=${nextRev}; evidence_count=${store.case.evidence.length}`,
+      );
+      addEvent(
+        store,
+        "human_review_requested",
+        "policy_gate",
+        `revision=${nextRev}; action_execution=blocked_pending_human_review`,
+      );
+
+      store.updated_at = new Date().toISOString();
+      await route.fulfill(json(200, store.case));
+      return;
+    }
+
     if (method === "GET" && path === "/cases") {
       const status = url.searchParams.get("status");
       const priority = url.searchParams.get("priority");
@@ -244,6 +357,20 @@ export async function installMockApi(page: Page) {
         event.case_id = id;
       }
       const now = new Date().toISOString();
+      created.clarifications = [];
+      created.current_revision = 1;
+      created.revisions = [
+        {
+          revision_number: 1,
+          created_at: now,
+          clarification_id: null,
+          clarification_text: null,
+          clarification_author: null,
+          triage: clone(created.triage),
+          resolution_brief: clone(created.resolution_brief),
+          evidence: clone(created.evidence),
+        },
+      ];
       cases.set(id, { case: created, trace, created_at: now, updated_at: now });
       await route.fulfill(json(201, created));
       return;

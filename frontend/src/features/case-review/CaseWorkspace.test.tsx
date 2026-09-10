@@ -5,7 +5,13 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../api/client";
-import type { CaseResponse, ReviewRequest, SaveDraftRequest, TraceResponse } from "../../api/types";
+import type {
+  AddClarificationRequest,
+  CaseResponse,
+  ReviewRequest,
+  SaveDraftRequest,
+  TraceResponse,
+} from "../../api/types";
 import { CaseWorkspace } from "./CaseWorkspace";
 import { sampleCase, sampleTrace, approvedTrace, rejectedTrace } from "./fixtures";
 
@@ -15,6 +21,7 @@ function renderWorkspace(options?: {
   submitReview?: (caseId: string, body: ReviewRequest) => Promise<CaseResponse>;
   saveDraft?: (caseId: string, body: SaveDraftRequest) => Promise<CaseResponse>;
   resetDraft?: (caseId: string, actor?: string, expectedDraftVersion?: number | null) => Promise<CaseResponse>;
+  addClarification?: (caseId: string, body: AddClarificationRequest) => Promise<CaseResponse>;
   status?: CaseResponse["status"];
   copyText?: (value: string) => Promise<void>;
 }) {
@@ -31,12 +38,14 @@ function renderWorkspace(options?: {
   const submitReview = options?.submitReview;
   const saveDraft = options?.saveDraft;
   const resetDraft = options?.resetDraft;
+  const addClarification = options?.addClarification;
   const copyText = options?.copyText ?? vi.fn().mockResolvedValue(undefined);
   return {
     loadCase,
     submitReview,
     saveDraft,
     resetDraft,
+    addClarification,
     copyText,
     user: userEvent.setup(),
     ...render(
@@ -52,6 +61,7 @@ function renderWorkspace(options?: {
                   submitReview={submitReview}
                   saveDraft={saveDraft}
                   resetDraft={resetDraft}
+                  addClarification={addClarification}
                   copyText={copyText}
                 />
               }
@@ -596,5 +606,154 @@ describe("CaseWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "Confirm reset" }));
 
     expect(resetDraft).toHaveBeenCalledWith(sampleCase.case_id, undefined, 1);
+  });
+
+  it("renders clarifications history and revision comparison when multiple revisions exist", async () => {
+    const multiRevCase: CaseResponse = {
+      ...sampleCase,
+      clarifications: [
+        {
+          id: "clarif-uuid-1",
+          text: "Server returned error 500 on auth portal",
+          author: "requester",
+          created_at: "2026-09-10T11:00:00Z",
+        },
+      ],
+      current_revision: 2,
+      revisions: [
+        {
+          revision_number: 1,
+          created_at: "2026-09-10T10:00:00Z",
+          triggered_by: "intake",
+          triage: { ...sampleCase.triage, priority: "P3" },
+          evidence: [],
+          resolution_brief: { ...sampleCase.resolution_brief, requester_facts: ["Initial report"] },
+          provider: "offline",
+        },
+        {
+          revision_number: 2,
+          created_at: "2026-09-10T11:00:00Z",
+          triggered_by: "clarification",
+          clarification_id: "clarif-uuid-1",
+          triage: { ...sampleCase.triage, priority: "P1" },
+          evidence: sampleCase.evidence,
+          resolution_brief: sampleCase.resolution_brief,
+          provider: "offline",
+        },
+      ],
+    };
+
+    const { user } = renderWorkspace({
+      loadCase: vi.fn().mockResolvedValue(multiRevCase),
+    });
+
+    await screen.findByText("Waiting for review");
+
+    // Clarification is displayed
+    expect(screen.getByRole("heading", { name: "Clarifications (1)" })).toBeInTheDocument();
+    expect(screen.getByText("Server returned error 500 on auth portal")).toBeInTheDocument();
+
+    // Revisions switcher is displayed
+    expect(screen.getByText(/Analysis Revisions \(2\):/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Revision 1 \(intake\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Revision 2 \(clarification\)/ })).toBeInTheDocument();
+
+    // Priority diff banner shows P3 -> P1
+    expect(screen.getByText(/Compared with Revision 1:/)).toBeInTheDocument();
+    expect(screen.getByText(/P3 → P1/)).toBeInTheDocument();
+
+    // Click to view Revision 1 (archived)
+    await user.click(screen.getByRole("button", { name: /Revision 1 \(intake\)/ }));
+    expect(await screen.findByText("Archived revision snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Initial report")).toBeInTheDocument();
+
+    // Return to current revision
+    await user.click(screen.getByRole("button", { name: /Return to current revision/ }));
+    expect(screen.queryByText("Archived revision snapshot")).not.toBeInTheDocument();
+  });
+
+  it("submits clarification, calls addClarification API, and clears input", async () => {
+    const addClarification = vi.fn().mockResolvedValue({
+      ...sampleCase,
+      current_revision: 2,
+      clarifications: [
+        {
+          id: "new-c-1",
+          text: "Additional details from user",
+          author: "requester",
+          created_at: "2026-09-10T12:00:00Z",
+        },
+      ],
+    });
+
+    const { user } = renderWorkspace({ addClarification });
+    await screen.findByText("Waiting for review");
+
+    const textArea = screen.getByLabelText("Clarification text");
+    await user.type(textArea, "Additional details from user");
+
+    const submitBtn = screen.getByRole("button", { name: "Add clarification & re-analyze" });
+    await user.click(submitBtn);
+
+    expect(addClarification).toHaveBeenCalledWith(
+      sampleCase.case_id,
+      expect.objectContaining({
+        text: "Additional details from user",
+        author: "requester",
+        discard_draft: true,
+      })
+    );
+  });
+
+  it("prompts warning dialog before re-analyzing if review panel is dirty", async () => {
+    const addClarification = vi.fn().mockResolvedValue(sampleCase);
+    const { user } = renderWorkspace({ addClarification });
+    await screen.findByText("Waiting for review");
+
+    // Edit review panel to make it dirty
+    const commentField = screen.getByLabelText("Review comment / internal notes");
+    await user.type(commentField, "Unsaved operator edit");
+
+    // Enter clarification
+    const textArea = screen.getByLabelText("Clarification text");
+    await user.type(textArea, "New context to trigger warning");
+
+    // Click submit
+    await user.click(screen.getByRole("button", { name: "Add clarification & re-analyze" }));
+
+    // Warning dialog should appear
+    expect(await screen.findByText("Unsaved review draft detected")).toBeInTheDocument();
+    expect(
+      screen.getByText(/You have unsaved edits in the review panel or a saved review draft\./)
+    ).toBeInTheDocument();
+
+    // Confirm discarding draft & re-analyze
+    await user.click(screen.getByRole("button", { name: "Discard draft & re-analyze" }));
+
+    expect(addClarification).toHaveBeenCalledWith(
+      sampleCase.case_id,
+      expect.objectContaining({
+        text: "New context to trigger warning",
+        discard_draft: true,
+      })
+    );
+  });
+
+  it("preserves clarification text and displays Retry button when addClarification fails", async () => {
+    const addClarification = vi.fn().mockRejectedValue(new Error("Network connection lost"));
+    const { user } = renderWorkspace({ addClarification });
+    await screen.findByText("Waiting for review");
+
+    const textArea = screen.getByLabelText("Clarification text");
+    await user.type(textArea, "Temporary text to preserve");
+
+    await user.click(screen.getByRole("button", { name: "Add clarification & re-analyze" }));
+
+    expect(await screen.findByText("Re-analysis failed")).toBeInTheDocument();
+    expect(screen.getByText("Network connection lost")).toBeInTheDocument();
+    expect(screen.getByLabelText("Clarification text")).toHaveValue("Temporary text to preserve");
+
+    // Retry button is available
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 });

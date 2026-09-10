@@ -37,6 +37,7 @@ export function ReviewPanel({
   onSubmit,
   onSaveDraft,
   onResetDraft,
+  onDirtyChange,
   draftBusy = false,
   draftError,
   draftConflict = false,
@@ -51,6 +52,7 @@ export function ReviewPanel({
   onSubmit: (body: ReviewRequest) => void;
   onSaveDraft?: (body: SaveDraftRequest) => void;
   onResetDraft?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
   draftBusy?: boolean;
   draftError?: string;
   draftConflict?: boolean;
@@ -67,6 +69,10 @@ export function ReviewPanel({
   const dirty = isDirty(caseData, local);
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     const caseIdChanged = prevCaseIdRef.current !== caseData.case_id;
