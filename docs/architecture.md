@@ -92,6 +92,22 @@ fallback reasons (`provider_not_configured` or `provider_output_unavailable`),
 never a provider exception message, response body, or credential. Case JSON
 includes `provider`, `fallback_reason`, and `model`.
 
+`app.decisions` (issue #15) adds a narrow server-side Jev System One adapter that
+is callable but NOT wired into the live intake workflow. It POSTs
+`{model, state, questions}` to the OpenRouter System One endpoint with the
+pinned model `typesafe/jev-1.13`, using a backend-only `JEV_API_KEY` that never
+reaches the browser, and validates typed `choice`/`score`/`noul` answers against
+the pinned human-reviewable `support-triage-v1` rubric (finite category,
+P4–P1 priority, risk options plus an explicit `uncertain/review` outcome).
+Missing credentials, timeouts, rate-limit/overload responses, and malformed or
+conflicting probability payloads all return the same safe deterministic
+review-needed fallback with a bounded `fallback_reason`; the adapter never
+retries through the LLM path and never generates prose. The existing LLM
+decision path exposes the same narrow `DecisionService` projection without an
+extra model call. Thresholds are uncalibrated heuristics pending
+independently human-labeled development data; see issues #16–#19 for mode
+selection, provenance persistence, UI, and offline evaluation.
+
 ## State model
 
 The durable state must include at least:

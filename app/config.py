@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +15,9 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_base_url: str | None = None
     llm_model: str | None = None
+    # Callable adapter only; loading these never activates Jev in the live workflow.
+    jev_api_key: str | None = Field(default=None, repr=False)
+    jev_timeout_seconds: float = Field(default=15.0, gt=0, allow_inf_nan=False)
     database_url: str = "postgresql+psycopg://copilot:copilot@localhost:5432/copilot"
     cors_allow_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     intake_rate_limit: int = 10

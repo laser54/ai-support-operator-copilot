@@ -257,6 +257,50 @@ Verification: Documentation-only review against `compose.yaml`, `app/llm/service
 Documentation: Updated `README.md`, `PROJECT_CONTEXT.md`, `CONTRIBUTING.md`, `docs/architecture.md`, `docs/demo.md`, `docs/product.md`, `docs/frontend-plan.md`, `docs/frontend-patterns.md`, and this roadmap.
 Follow-up: Subphase 9.8 remains the next implementation step.
 
+### 10. Jev decision adapter (issue #15) — completed
+
+**Dependencies:** phases 1–8 completed; child of umbrella issue #14.
+
+**Deliverables:** narrow server-side `app.decisions` contract (`DecisionResult`,
+`ModelCallMetadata`, `Usage`, `DecisionService`); pinned `support-triage-v1`
+rubric (finite category/P4–P1/risk criteria plus `uncertain/review`, uncalibrated
+thresholds); OpenRouter System One adapter (`POST /v1/systemone`,
+`typesafe/jev-1.13`) independent of `OpenAICompatibleClient`; strict answer
+validation (keys, types, normalized distributions, winner/legend/score
+consistency, duplicate-key rejection); bounded safe fallback
+(`jev_not_configured`, `jev_timeout`, `jev_http_*`, `jev_transport_error`,
+`jev_invalid_output`) that never retries via LLM and never generates prose;
+neutral `GenerationResult.to_decision()` projection without a second model call;
+backend-only `JEV_API_KEY`/`JEV_TIMEOUT_SECONDS` settings, `.env.example`, and
+local Compose passthrough (empty defaults preserve fallback behavior).
+The adapter is callable but NOT wired into `POST /cases` (issue #16).
+
+**Acceptance criteria:** contract tests cover valid Choice/Score/Noul shapes,
+malformed/unknown options, absent answers, missing key, timeout/429/529, and
+invalid/conflicting probabilities with safe review/fallback outcomes on
+synthetic fixtures only; decision output maps to typed triage with uncertainty
+and actual provider/model metadata and never grants approval; existing LLM and
+deterministic fallback tests remain green; no credentials in browser/logs.
+
+**Required documentation updates:** `README.md` layout, `docs/architecture.md`
+model boundary, `.env.example`, `compose.yaml` passthrough, this roadmap
+completion record.
+
+Completed: 2026-10-06
+Scope: Issue #15 software slice: typed Jev adapter, rubric, validation, safe
+fallback, neutral LLM projection, config/docs; no live wiring, no UI, no labels,
+no benchmark.
+Verification: `pytest tests/` — 154 passed, 8 skipped (PostgreSQL tests need
+`TEST_DATABASE_URL`); focused `tests/test_jev_adapter.py` +
+`tests/test_llm_service.py` — 108 passed; `ruff check` clean; `mypy app` clean
+(28 files); frontend regression `npm test`, `npm run lint`, `npm run typecheck`,
+`npm run build`, `npm run check:bundle` passed; no secrets in repo or bundle.
+Documentation: Updated `README.md`, `docs/architecture.md`, `.env.example`,
+`compose.yaml`, and this roadmap.
+Follow-up: Issues #16 (backend mode selection), #18 (provenance/labels), #17
+(UI), #19 (offline benchmark on independently human-labeled data), then umbrella
+#14. Threshold calibration requires human-labeled development data.
+
 ## MVP boundaries
 
 The roadmap does not authorize authentication, real ticketing or other production integrations, autonomous writes, a vector database, or real customer data. The thin reviewer frontend is phase 9; subphases 9.1–9.7 are implemented and 9.8 remains planned. It does not broaden the product boundary.

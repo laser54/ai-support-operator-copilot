@@ -3,6 +3,7 @@
 import json
 
 import httpx
+import pytest
 
 from app.config import Settings
 from app.domain.contracts import (
@@ -151,3 +152,56 @@ def test_openai_client_sends_complete_schema_and_parses_typed_output() -> None:
     assert '"triage"' in system_prompt
     assert '"reply_draft"' in system_prompt
     assert '"priority": "P1" | "P2" | "P3"' in system_prompt
+
+
+@pytest.mark.parametrize("fallback", [False, True])
+def test_neutral_decision_projection_preserves_full_generation_without_another_call(
+    fallback: bool,
+) -> None:
+    class CountingClient(ValidClient):
+        calls = 0
+
+        def generate(self, request_text: str, evidence: list[Evidence]) -> ModelOutput:
+            self.calls += 1
+            if fallback:
+                raise ValueError("synthetic invalid response")
+            return super().generate(request_text, evidence)
+
+    client = CountingClient()
+    result = TriageAndBriefService(
+        Settings(llm_model="synthetic-model"), client=client
+    ).generate("Portal login HTTP 500", [])
+    original_brief = result.brief.model_dump()
+    original_triage = result.triage.model_dump()
+
+    decision = result.to_decision()
+    assert client.calls == 1
+    assert decision.triage.model_dump() == original_triage
+    assert decision.actual_mode == ("deterministic_fallback" if fallback else "llm")
+    assert decision.uncertain  # Existing missing-information prose is retained, not replaced.
+    assert decision.metadata.provider == result.provider
+    assert decision.metadata.fallback_reason == result.fallback_reason
+    assert decision.metadata.requested_model == (None if fallback else "synthetic-model")
+    assert decision.metadata.model is None  # Legacy chat path has no resolved response model.
+    assert decision.metadata.cost is None
+    assert decision.metadata.usage is None
+    assert not hasattr(decision, "reply_draft")
+    assert result.brief.model_dump() == original_brief
+    assert result.triage.model_dump() == original_triage
+    assert all(action.state is ActionState.PROPOSED for action in result.brief.proposed_actions)
+    decision.triage.missing_information.clear()
+    assert result.triage.model_dump() == original_triage
+
+
+def test_decision_projection_retains_uncertainty_when_brief_and_triage_lists_differ() -> None:
+    class MismatchedClient(ValidClient):
+        def generate(self, request_text: str, evidence: list[Evidence]) -> ModelOutput:
+            output = super().generate(request_text, evidence)
+            output.triage.missing_information.clear()
+            return output
+
+    result = TriageAndBriefService(Settings(), client=MismatchedClient()).generate("x", [])
+    decision = result.to_decision()
+    assert decision.uncertain
+    assert decision.triage.missing_information == []
+    assert result.brief.missing_information == ["first observed timestamp"]

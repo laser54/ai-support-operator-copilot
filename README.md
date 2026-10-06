@@ -307,6 +307,7 @@ npm run test:e2e
 ai-support-operator-copilot/
 ├── app/
 │   ├── api/             # FastAPI REST routes, schemas, rate-limiting
+│   ├── decisions/       # Jev System One typed-decision adapter (callable only, not live-wired)
 │   ├── domain/          # Pydantic contracts (Case, Evidence, Triage, AuditEvent)
 │   ├── graph/           # LangGraph StateGraph, nodes, policy gate
 │   ├── llm/             # OpenAI-compatible JSON client & deterministic fallback

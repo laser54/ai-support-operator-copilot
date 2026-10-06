@@ -8,6 +8,8 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.config import Settings
+from app.decisions.contracts import DecisionResult, ModelCallMetadata
+from app.decisions.rubric import UNCERTAINTY_THRESHOLD
 from app.domain.contracts import (
     ActionKind,
     Evidence,
@@ -46,6 +48,32 @@ class GenerationResult:
     provider: str
     fallback_reason: str | None = None
     model: str | None = None
+
+    def to_decision(self) -> DecisionResult:
+        """Project an already-generated result, never call a second decision model.
+
+        Preserve the full brief and its real generator attribution. The legacy
+        chat path records a requested model, not a resolved model or usage.
+        Missing-information prose stays with that generator, not Jev.
+        """
+
+        fallback = self.provider == "deterministic_fallback"
+        return DecisionResult(
+            triage=self.triage.model_copy(deep=True),
+            actual_mode="deterministic_fallback" if fallback else "llm",
+            uncertain=(
+                fallback
+                or bool(self.triage.missing_information)
+                or bool(self.brief.missing_information)
+                or self.triage.category == "uncertain/review"
+                or self.triage.confidence < UNCERTAINTY_THRESHOLD
+            ),
+            metadata=ModelCallMetadata(
+                provider=self.provider,
+                requested_model=self.model,
+                fallback_reason=self.fallback_reason,
+            ),
+        )
 
 
 class OpenAICompatibleClient:
