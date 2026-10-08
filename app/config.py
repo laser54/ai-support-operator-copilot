@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_base_url: str | None = None
     llm_model: str | None = None
-    # Callable adapter only; loading these never activates Jev in the live workflow.
+    # Backend-only; Jev is selected only by an explicit per-case triage_mode.
     jev_api_key: str | None = Field(default=None, repr=False)
     jev_timeout_seconds: float = Field(default=15.0, gt=0, allow_inf_nan=False)
     database_url: str = "postgresql+psycopg://copilot:copilot@localhost:5432/copilot"

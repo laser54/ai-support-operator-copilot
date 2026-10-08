@@ -8,6 +8,8 @@ from app.domain.contracts import Evidence, Triage
 
 NonnegativeMetric = Annotated[float, Field(ge=0, allow_inf_nan=False, strict=True)]
 TokenCount = Annotated[int, Field(ge=0, strict=True)]
+TriageMode = Literal["llm", "jev"]
+ActualMode = Literal["llm", "jev", "deterministic_fallback"]
 
 
 class Usage(BaseModel):
@@ -42,9 +44,26 @@ class DecisionResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     triage: Triage
-    actual_mode: Literal["llm", "jev", "deterministic_fallback"]
+    actual_mode: ActualMode
     uncertain: bool
     metadata: ModelCallMetadata
+
+
+class AnalysisProvenance(BaseModel):
+    """Per-run selection and separate generators; absent legacy data stays unknown."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    triage_mode: TriageMode | None = None
+    actual_mode: ActualMode | None = None
+    uncertain: bool | None = None
+    decision_metadata: ModelCallMetadata | None = None
+    prose_provider: str | None = None
+    prose_model: str | None = None
+    prose_fallback_reason: str | None = None
+
+
+PROVENANCE_KEYS = tuple(AnalysisProvenance.model_fields)
 
 
 class DecisionService(Protocol):

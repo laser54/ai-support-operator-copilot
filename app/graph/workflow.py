@@ -7,6 +7,13 @@ from uuid import UUID, uuid4
 from langgraph.graph import END, START, StateGraph
 
 from app.audit import tool_call_event
+from app.decisions.contracts import (
+    PROVENANCE_KEYS,
+    ActualMode,
+    AnalysisProvenance,
+    DecisionService,
+    TriageMode,
+)
 from app.domain.contracts import ActorType, AuditEvent, Clarification, Evidence
 from app.llm.service import TriageAndBriefService
 from app.persistence.repositories import CaseRepository
@@ -27,6 +34,13 @@ class WorkflowState(TypedDict, total=False):
     provider: str
     fallback_reason: str | None
     model: str | None
+    triage_mode: TriageMode
+    actual_mode: ActualMode
+    uncertain: bool
+    decision_metadata: dict[str, object]
+    prose_provider: str
+    prose_model: str | None
+    prose_fallback_reason: str | None
     clarifications: list[dict[str, object]]
     revisions: list[dict[str, object]]
     current_revision: int
@@ -35,12 +49,36 @@ class WorkflowState(TypedDict, total=False):
     review_draft: dict[str, object] | None
 
 
+def legacy_revision(state: dict[str, object]) -> dict[str, object]:
+    """Expose an old checkpoint without inventing missing history/provenance."""
+
+    return {
+        "revision_number": 1,
+        "created_at": state.get("created_at"),
+        "triggered_by": "intake",
+        "clarification_id": None,
+        "triage": state.get("triage") or {},
+        "evidence": state.get("evidence") or [],
+        "resolution_brief": state.get("resolution_brief") or {},
+        "provider": state.get("provider"),
+        "fallback_reason": state.get("fallback_reason"),
+        "model": state.get("model"),
+        **{key: state.get(key) for key in PROVENANCE_KEYS},
+    }
+
+
 class CaseWorkflow:
     """Execute intake, evidence, brief, and policy-gate nodes for one case."""
 
-    def __init__(self, repository: CaseRepository, service: TriageAndBriefService) -> None:
+    def __init__(
+        self,
+        repository: CaseRepository,
+        service: TriageAndBriefService,
+        decision_service: DecisionService | None = None,
+    ) -> None:
         self._repository = repository
         self._service = service
+        self._decision_service = decision_service
         graph = StateGraph(WorkflowState)
         graph.add_node("intake", self._intake)
         graph.add_node("gather_evidence", self._gather_evidence)
@@ -53,10 +91,10 @@ class CaseWorkflow:
         graph.add_edge("policy_gate", END)
         self._graph = graph.compile()
 
-    def run(self, request_text: str) -> dict[str, object]:
+    def run(self, request_text: str, *, triage_mode: TriageMode = "llm") -> dict[str, object]:
         """Run to the mandatory human-review stop and persist the checkpoint."""
 
-        state = self._graph.invoke({"request_text": request_text})
+        state = self._graph.invoke({"request_text": request_text, "triage_mode": triage_mode})
         case_id = UUID(str(state["case_id"]))
         serialized = dict(state)
         now_iso = datetime.now(UTC).isoformat()
@@ -71,6 +109,7 @@ class CaseWorkflow:
             "provider": serialized["provider"],
             "fallback_reason": serialized.get("fallback_reason"),
             "model": serialized.get("model"),
+            **{key: serialized.get(key) for key in PROVENANCE_KEYS},
         }
         serialized["clarifications"] = []
         serialized["revisions"] = [revision_1]
@@ -88,7 +127,7 @@ class CaseWorkflow:
         idempotency_key: str | None = None,
         discard_draft: bool = True,
     ) -> dict[str, object]:
-        """Attach clarification, execute updated tools and LLM, and append revision."""
+        """Attach clarification, rerun the selected mode, and append a revision."""
         if not clarification_text or not clarification_text.strip():
             raise ValueError("clarification text cannot be empty or blank")
         if len(clarification_text) > 10_000:
@@ -162,20 +201,7 @@ class CaseWorkflow:
         # Ensure revisions list exists (synthesize revision 1 for legacy states if needed)
         revisions = list(cast(list[dict[str, object]], state.get("revisions", [])))
         if not revisions:
-            revisions = [
-                {
-                    "revision_number": 1,
-                    "created_at": str(state.get("created_at") or datetime.now(UTC).isoformat()),
-                    "triggered_by": "intake",
-                    "clarification_id": None,
-                    "triage": state.get("triage") or {},
-                    "evidence": state.get("evidence") or [],
-                    "resolution_brief": state.get("resolution_brief") or {},
-                    "provider": str(state.get("provider") or "deterministic_fallback"),
-                    "fallback_reason": state.get("fallback_reason"),
-                    "model": state.get("model"),
-                }
-            ]
+            revisions = [legacy_revision(state)]
 
         next_rev_num = len(revisions) + 1
 
@@ -211,13 +237,16 @@ class CaseWorkflow:
             )
 
         # Build new brief
-        result = self._service.generate(combined_text, evidence)
+        triage_mode = state.get("triage_mode") or "llm"
+        if triage_mode not in {"llm", "jev"}:
+            raise ValueError("checkpoint has an invalid triage mode")
+        analysis = self._analyze(combined_text, evidence, cast(TriageMode, triage_mode))
         self._add_event(
             case_id,
             "brief_built",
             "build_brief",
             {
-                "provider": result.provider,
+                **self._analysis_summary(analysis),
                 "evidence_count": len(evidence),
                 "revision": next_rev_num,
             },
@@ -241,24 +270,16 @@ class CaseWorkflow:
             "created_at": now_iso,
             "triggered_by": "clarification",
             "clarification_id": str(clarification_obj.id),
-            "triage": result.triage.model_dump(mode="json"),
+            **analysis,
             "evidence": [item.model_dump(mode="json") for item in evidence],
-            "resolution_brief": result.brief.model_dump(mode="json"),
-            "provider": result.provider,
-            "fallback_reason": result.fallback_reason,
-            "model": result.model,
         }
         revisions.append(new_revision)
 
         # Update state fields
         state["revisions"] = revisions
         state["current_revision"] = next_rev_num
-        state["triage"] = new_revision["triage"]
         state["evidence"] = new_revision["evidence"]
-        state["resolution_brief"] = new_revision["resolution_brief"]
-        state["provider"] = new_revision["provider"]
-        state["fallback_reason"] = new_revision["fallback_reason"]
-        state["model"] = new_revision["model"]
+        state.update(analysis)
         state["status"] = "awaiting_human_review"
 
         # Monotonic version increment for optimistic concurrency
@@ -310,19 +331,70 @@ class CaseWorkflow:
     def _build_brief(self, state: WorkflowState) -> WorkflowState:
         case_id = UUID(state["case_id"])
         evidence = [Evidence.model_validate(item) for item in state["evidence"]]
-        result = self._service.generate(state["request_text"], evidence)
+        analysis = self._analyze(state["request_text"], evidence, state.get("triage_mode", "llm"))
         self._add_event(
             case_id,
             "brief_built",
             "build_brief",
-            {"provider": result.provider, "evidence_count": len(evidence)},
+            {**self._analysis_summary(analysis), "evidence_count": len(evidence)},
         )
+        return analysis
+
+    def _analyze(
+        self, request_text: str, evidence: list[Evidence], triage_mode: TriageMode
+    ) -> WorkflowState:
+        """Select exactly one decision path and attribute its prose independently."""
+
+        if triage_mode == "llm":
+            generated = self._service.generate(request_text, evidence)
+            decision = generated.to_decision()
+            brief = generated.brief
+            prose_provider = generated.provider
+            prose_model = generated.model
+            prose_fallback_reason = generated.fallback_reason
+        elif triage_mode == "jev":
+            if self._decision_service is None:
+                raise ValueError("Jev mode requires the server decision adapter")
+            decision = self._decision_service.decide(request_text, evidence)
+            prose = self._service.generate_brief(request_text, evidence, decision.triage)
+            brief = prose.brief
+            prose_provider = prose.provider
+            prose_model = prose.model
+            prose_fallback_reason = prose.fallback_reason
+        else:
+            raise ValueError("invalid triage mode")
+
         return {
-            "triage": result.triage.model_dump(mode="json"),
-            "resolution_brief": result.brief.model_dump(mode="json"),
-            "provider": result.provider,
-            "fallback_reason": result.fallback_reason,
-            "model": result.model,
+            "triage": decision.triage.model_dump(mode="json"),
+            "resolution_brief": brief.model_dump(mode="json"),
+            # Preserve the existing generator fields for old API clients.
+            "provider": prose_provider,
+            "fallback_reason": prose_fallback_reason,
+            "model": prose_model,
+            "triage_mode": triage_mode,
+            "actual_mode": decision.actual_mode,
+            "uncertain": decision.uncertain,
+            "decision_metadata": decision.metadata.model_dump(mode="json"),
+            "prose_provider": prose_provider,
+            "prose_model": prose_model,
+            "prose_fallback_reason": prose_fallback_reason,
+        }
+
+    @staticmethod
+    def _analysis_summary(analysis: WorkflowState) -> dict[str, object]:
+        provenance = AnalysisProvenance.model_validate(
+            {key: analysis.get(key) for key in PROVENANCE_KEYS}
+        )
+        metadata = provenance.decision_metadata
+        return {
+            "provider": analysis["provider"],
+            "triage_mode": provenance.triage_mode,
+            "actual_mode": provenance.actual_mode,
+            "uncertain": provenance.uncertain,
+            "decision_provider": metadata.provider if metadata else None,
+            "decision_fallback_reason": metadata.fallback_reason if metadata else None,
+            "prose_provider": provenance.prose_provider,
+            "prose_fallback_reason": provenance.prose_fallback_reason,
         }
 
     def _policy_gate(self, state: WorkflowState) -> WorkflowState:

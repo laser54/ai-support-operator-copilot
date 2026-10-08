@@ -6,8 +6,9 @@ This document is the authoritative sequential implementation guide for the repos
 
 **Current milestone:** MVP vertical slice
 
-**Current phase:** 9 — Reviewer frontend and Vercel Hobby deployment
-**Overall status:** 9.7 complete; 9.8 is next
+**Current phase:** 11 — Explicit per-case triage mode (backend, issue #16), completed
+**Overall status:** Backend issues #15 and #16 complete; frontend 9.7 complete,
+9.8 deployment remains planned. Issues #17–#19 remain separate follow-ups.
 
 ## Status legend
 
@@ -273,7 +274,8 @@ consistency, duplicate-key rejection); bounded safe fallback
 neutral `GenerationResult.to_decision()` projection without a second model call;
 backend-only `JEV_API_KEY`/`JEV_TIMEOUT_SECONDS` settings, `.env.example`, and
 local Compose passthrough (empty defaults preserve fallback behavior).
-The adapter is callable but NOT wired into `POST /cases` (issue #16).
+At phase-10 completion the adapter was callable but not wired into `POST /cases`;
+phase 11 below adds that explicit opt-in wiring (issue #16).
 
 **Acceptance criteria:** contract tests cover valid Choice/Score/Noul shapes,
 malformed/unknown options, absent answers, missing key, timeout/429/529, and
@@ -300,6 +302,48 @@ Documentation: Updated `README.md`, `docs/architecture.md`, `.env.example`,
 Follow-up: Issues #16 (backend mode selection), #18 (provenance/labels), #17
 (UI), #19 (offline benchmark on independently human-labeled data), then umbrella
 #14. Threshold calibration requires human-labeled development data.
+
+### 11. Explicit per-case triage mode, backend (issue #16) — completed
+
+**Dependencies:** phase 10 (#15) completed; child of umbrella issue #14.
+This backend slice is independent of the still-planned frontend deployment phase 9.8.
+
+**Deliverables:** validated optional `POST /cases` `triage_mode=llm|jev` with
+unchanged `llm` default; one selected decision path; Jev decision followed only
+by a separately attributed prose-only brief; persisted requested/actual mode,
+uncertainty, decision metadata and independent prose fallback in checkpoints
+and revisions; mode-preserving clarification re-analysis and idempotent replay;
+legacy history remains unknown, with `llm` used only for the next run.
+
+**Acceptance criteria:** omitted/explicit LLM retain existing behavior; fake and
+transport-mocked Jev run once with no LLM decision; invalid mode is Pydantic 422;
+unconfigured/timeout/invalid Jev preserve review-needed deterministic decisions;
+prose failure cannot erase or repeat the decision; clarification revisions and
+replays retain correct provenance through success/fallback transitions; all runs
+stop at the policy gate and approval remains a separate human API. No migration,
+external dependency, lockfile change, UI, production activation, shadow execution,
+automatic write, benchmark, or broader label schema is included.
+
+Completed: 2026-10-08
+Scope: Issue #16 backend mode selection and safe fallback through revisions;
+added the prose-only structured boundary, independent generator attribution,
+nullable legacy provenance, API/docs, and focused SQLite/MockTransport regressions.
+Verification: Baseline `env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m pytest -q`
+returned 154 passed, 8 skipped. Before implementation, the focused command
+`env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m pytest tests/test_triage_mode.py -q`
+returned 25 failed for missing mode/provenance and prose-only support (RED).
+Six additional malformed-prose regressions were also reproduced failing before
+their fix. Final focused suite: 35 passed (GREEN). Full command above: 189 passed,
+8 skipped (PostgreSQL tests require `TEST_DATABASE_URL`; no skips were faked).
+`env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m ruff check .` clean;
+`env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m mypy app` clean;
+`git diff --check` clean. Tests use injected/synthetic providers, with no live
+external inference or production writes.
+Documentation: Updated `README.md` API surface, `docs/architecture.md`, and this
+roadmap. No new environment variable; `.env.example` unchanged.
+Follow-up: #17 UI mode controls; #18 broader provenance/labels; #19 offline benchmark
+and calibration on independently human-labeled data. PostgreSQL integration remains
+to be run with `TEST_DATABASE_URL`. No production activation is implied.
 
 ## MVP boundaries
 
