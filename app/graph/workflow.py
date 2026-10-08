@@ -1,6 +1,8 @@
 """Case intake graph that always stops at the human policy gate."""
 
+from copy import deepcopy
 from datetime import UTC, datetime
+from time import perf_counter
 from typing import TypedDict, cast
 from uuid import UUID, uuid4
 
@@ -12,8 +14,10 @@ from app.decisions.contracts import (
     ActualMode,
     AnalysisProvenance,
     DecisionService,
+    ModelCallMetadata,
     TriageMode,
 )
+from app.decisions.pricing import with_cost_estimate
 from app.domain.contracts import ActorType, AuditEvent, Clarification, Evidence
 from app.llm.service import TriageAndBriefService
 from app.persistence.repositories import CaseRepository
@@ -42,6 +46,13 @@ class WorkflowState(TypedDict, total=False):
     prose_model: str | None
     prose_fallback_reason: str | None
     clarifications: list[dict[str, object]]
+    prose_metadata: dict[str, object]
+    decision_attempt_metadata: dict[str, object] | None
+    prose_attempt_metadata: dict[str, object] | None
+    decision_wall_time_ms: float
+    prose_generation_wall_time_ms: float
+    analysis_wall_time_ms: float
+    generation_call_scope: str
     revisions: list[dict[str, object]]
     current_revision: int
     clarification_idempotency: dict[str, dict[str, str]]
@@ -128,14 +139,32 @@ class CaseWorkflow:
         discard_draft: bool = True,
     ) -> dict[str, object]:
         """Attach clarification, rerun the selected mode, and append a revision."""
+        # Keep the checkpoint row lock until final persistence. Intermediate
+        # audit commits could otherwise allow labels to be overwritten by stale JSON.
+        try:
+            result = self._reanalyze(
+                case_id, clarification_text, author=author, idempotency_key=idempotency_key,
+                discard_draft=discard_draft,
+            )
+            self._repository.commit()
+            return result
+        except Exception:
+            self._repository.rollback()
+            raise
+
+    def _reanalyze(
+        self, case_id: UUID, clarification_text: str, *, author: str,
+        idempotency_key: str | None, discard_draft: bool,
+    ) -> dict[str, object]:
         if not clarification_text or not clarification_text.strip():
             raise ValueError("clarification text cannot be empty or blank")
         if len(clarification_text) > 10_000:
             raise ValueError("clarification text exceeds 10,000 characters limit")
 
-        state = self._repository.load_workflow_state_for_update(case_id)
-        if state is None:
+        loaded = self._repository.load_workflow_state_for_update(case_id)
+        if loaded is None:
             raise CaseNotFoundError("case not found")
+        state = deepcopy(loaded)
 
         current_status = str(state.get("status", ""))
         if current_status in {"completed", "rejected"}:
@@ -167,6 +196,7 @@ class CaseWorkflow:
                 "draft_discarded",
                 "reanalyze",
                 {"reason": "reanalysis_with_clarification"},
+                commit=False,
             )
             state["review_draft"] = None
 
@@ -196,6 +226,7 @@ class CaseWorkflow:
                 "author": author,
                 "text_preview": clarification_text[:100],
             },
+            commit=False,
         )
 
         # Ensure revisions list exists (synthesize revision 1 for legacy states if needed)
@@ -233,7 +264,8 @@ class CaseWorkflow:
                     tool_name=name,
                     inputs=inputs,
                     evidence_source_ids=[item.source_id for item in results],
-                )
+                ),
+                commit=False,
             )
 
         # Build new brief
@@ -250,6 +282,7 @@ class CaseWorkflow:
                 "evidence_count": len(evidence),
                 "revision": next_rev_num,
             },
+            commit=False,
         )
 
         # Human review requested (policy gate stop)
@@ -261,6 +294,7 @@ class CaseWorkflow:
                 "action_execution": "blocked_pending_human_review",
                 "revision": next_rev_num,
             },
+            commit=False,
         )
 
         # Create new revision snapshot
@@ -295,7 +329,7 @@ class CaseWorkflow:
             }
             state["clarification_idempotency"] = idempotency_map
 
-        self._repository.save_workflow_state(case_id, state)
+        self._repository.save_workflow_state(case_id, state, commit=False)
         return state
 
     def _intake(self, state: WorkflowState) -> WorkflowState:
@@ -345,25 +379,48 @@ class CaseWorkflow:
     ) -> WorkflowState:
         """Select exactly one decision path and attribute its prose independently."""
 
+        started = perf_counter()
+        decision_started = perf_counter()
         if triage_mode == "llm":
             generated = self._service.generate(request_text, evidence)
+            decision_wall_time_ms = (perf_counter() - decision_started) * 1000
+            # One shared triage/prose call: overlapping measurements, not two calls.
+            prose_wall_time_ms = decision_wall_time_ms
             decision = generated.to_decision()
             brief = generated.brief
             prose_provider = generated.provider
             prose_model = generated.model
             prose_fallback_reason = generated.fallback_reason
+            prose_metadata = decision.metadata.model_copy(deep=True)
+            prose_attempt = generated.attempt_metadata
+            call_scope = "shared_triage_and_prose"
         elif triage_mode == "jev":
             if self._decision_service is None:
                 raise ValueError("Jev mode requires the server decision adapter")
             decision = self._decision_service.decide(request_text, evidence)
+            decision_wall_time_ms = (perf_counter() - decision_started) * 1000
+            prose_started = perf_counter()
             prose = self._service.generate_brief(request_text, evidence, decision.triage)
+            prose_wall_time_ms = (perf_counter() - prose_started) * 1000
             brief = prose.brief
             prose_provider = prose.provider
             prose_model = prose.model
             prose_fallback_reason = prose.fallback_reason
+            prose_metadata = prose.metadata or ModelCallMetadata(
+                provider=prose.provider, requested_model=prose.model,
+                fallback_reason=prose.fallback_reason, wall_time_ms=prose_wall_time_ms,
+            )
+            prose_attempt = prose.attempt_metadata
+            call_scope = "separate_decision_and_prose"
         else:
             raise ValueError("invalid triage mode")
 
+        decision_metadata = with_cost_estimate(decision.metadata)
+        prose_metadata = with_cost_estimate(prose_metadata)
+        decision_attempt = (
+            with_cost_estimate(decision.attempt_metadata) if decision.attempt_metadata else None
+        )
+        prose_attempt = with_cost_estimate(prose_attempt) if prose_attempt else None
         return {
             "triage": decision.triage.model_dump(mode="json"),
             "resolution_brief": brief.model_dump(mode="json"),
@@ -374,10 +431,19 @@ class CaseWorkflow:
             "triage_mode": triage_mode,
             "actual_mode": decision.actual_mode,
             "uncertain": decision.uncertain,
-            "decision_metadata": decision.metadata.model_dump(mode="json"),
+            "decision_metadata": decision_metadata.model_dump(mode="json"),
             "prose_provider": prose_provider,
             "prose_model": prose_model,
             "prose_fallback_reason": prose_fallback_reason,
+            "prose_metadata": prose_metadata.model_dump(mode="json"),
+            "decision_attempt_metadata": decision_attempt.model_dump(mode="json")
+            if decision_attempt else None,
+            "prose_attempt_metadata": prose_attempt.model_dump(mode="json")
+            if prose_attempt else None,
+            "decision_wall_time_ms": decision_wall_time_ms,
+            "prose_generation_wall_time_ms": prose_wall_time_ms,
+            "analysis_wall_time_ms": (perf_counter() - started) * 1000,
+            "generation_call_scope": call_scope,
         }
 
     @staticmethod
@@ -408,7 +474,8 @@ class CaseWorkflow:
         return {"status": "awaiting_human_review"}
 
     def _add_event(
-        self, case_id: UUID, event_type: str, name: str, values: dict[str, object]
+        self, case_id: UUID, event_type: str, name: str, values: dict[str, object],
+        *, commit: bool = True,
     ) -> AuditEvent:
         event = AuditEvent(
             case_id=case_id,
@@ -422,4 +489,4 @@ class CaseWorkflow:
             output_summary="; ".join(f"{key}={value}" for key, value in values.items())[:2_000],
             correlation_id=uuid4(),
         )
-        return self._repository.add_audit_event(event)
+        return self._repository.add_audit_event(event, commit=commit)

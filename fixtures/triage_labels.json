@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "synthetic": true,
+  "labels": [
+    {
+      "fixture_id": "synthetic-login-incident",
+      "revision_number": 1,
+      "reviewer": "synthetic-reviewer@example.test",
+      "human_reviewed": true,
+      "outcome": "classified",
+      "category": "incident/access",
+      "priority": "P2",
+      "risk": "medium",
+      "comment": "Synthetic human assessment of a login incident."
+    },
+    {
+      "fixture_id": "synthetic-request-needs-context",
+      "revision_number": 1,
+      "reviewer": "synthetic-reviewer@example.test",
+      "human_reviewed": true,
+      "outcome": "uncertain/review",
+      "category": null,
+      "priority": null,
+      "risk": null,
+      "comment": "Synthetic human abstention: insufficient evidence to classify."
+    },
+    {
+      "fixture_id": "synthetic-request-needs-context",
+      "revision_number": 2,
+      "reviewer": "synthetic-reviewer@example.test",
+      "human_reviewed": true,
+      "outcome": "classified",
+      "category": "support/request",
+      "priority": "P4",
+      "risk": "low",
+      "comment": "Synthetic clarification provides sufficient evidence for a human label."
+    }
+  ]
+}
