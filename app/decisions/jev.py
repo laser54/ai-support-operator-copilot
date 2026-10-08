@@ -8,6 +8,7 @@ No raw request, provider payload, credential, or exception is logged or returned
 
 import json
 import math
+import re
 from time import perf_counter
 from typing import Annotated, Any, Literal
 
@@ -16,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.config import Settings
 from app.decisions.contracts import DecisionResult, ModelCallMetadata, NonnegativeMetric, Usage
+from app.decisions.measurements import reported_usage
 from app.decisions.rubric import (
     CATEGORY_CRITERIA,
     DEFAULT_ENDPOINT,
@@ -123,7 +125,10 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _fallback(reason: str, model: str | None, elapsed_ms: float | None = None) -> DecisionResult:
+def _fallback(
+    reason: str, model: str | None, elapsed_ms: float | None = None,
+    attempt_metadata: ModelCallMetadata | None = None,
+) -> DecisionResult:
     return DecisionResult(
         triage=Triage(
             category="uncertain/review",
@@ -134,6 +139,7 @@ def _fallback(reason: str, model: str | None, elapsed_ms: float | None = None) -
         ),
         actual_mode="deterministic_fallback",
         uncertain=True,
+        attempt_metadata=attempt_metadata,
         metadata=ModelCallMetadata(
             provider="deterministic_fallback",
             requested_model=model,
@@ -217,9 +223,10 @@ class JevClient:
         """Validate full typed answers before mapping; return only bounded failure causes."""
 
         started = perf_counter()
+        attempt: ModelCallMetadata | None = None
 
         def failed(reason: str) -> DecisionResult:
-            return _fallback(reason, self._model, (perf_counter() - started) * 1000)
+            return _fallback(reason, self._model, (perf_counter() - started) * 1000, attempt)
 
         if not self._api_key or not self._api_key.strip():
             return failed("jev_not_configured")
@@ -254,6 +261,23 @@ class JevClient:
             if not 200 <= response.status_code < 300:
                 return failed(f"jev_http_{response.status_code}")
             payload = json.loads(response.content, object_pairs_hook=_unique_object)
+            # A billed but invalid decision is attributed to the attempted call,
+            # not to the actual deterministic decision. Raw answers are discarded.
+            if isinstance(payload, dict):
+                raw_model = payload.get("model")
+                model = raw_model if isinstance(raw_model, str) and re.fullmatch(
+                    r"typesafe/jev-1\.13(?:-[0-9]{8})?", raw_model,
+                ) else None
+                usage, cost = reported_usage(payload.get("usage"))
+                provider = "TypeSafe" if payload.get("provider") == "TypeSafe" else "unknown"
+                attempt = ModelCallMetadata(
+                    provider=f"openrouter/{provider}", model=model,
+                    requested_model=self._model,
+                    wall_time_ms=(perf_counter() - started) * 1000,
+                    usage=usage, cost=cost,
+                    cost_source="provider_usage" if cost is not None else "unknown",
+                    rubric_version=RUBRIC_VERSION,
+                )
             parsed = _Response.model_validate(payload)
             return _decision(parsed, self._model, (perf_counter() - started) * 1000)
         except httpx.TimeoutException:

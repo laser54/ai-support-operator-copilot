@@ -1,14 +1,17 @@
 """Safe model boundary for triage and resolution brief generation."""
 
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, replace
+from time import perf_counter
 from typing import Annotated, Protocol, runtime_checkable
 from uuid import uuid4
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
 
 from app.config import Settings
 from app.decisions.contracts import DecisionResult, ModelCallMetadata
+from app.decisions.measurements import reported_usage
 from app.decisions.rubric import UNCERTAINTY_THRESHOLD
 from app.domain.contracts import (
     ActionKind,
@@ -27,6 +30,7 @@ class ModelOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     triage: Triage
+    _call_metadata: ModelCallMetadata | None = PrivateAttr(default=None)
     requester_facts: list[str] = Field(min_length=1)
     inferences: list[str] = Field(min_length=1)
     missing_information: list[str] = Field(min_length=1)
@@ -47,6 +51,7 @@ class BriefOutput(BaseModel):
     requester_facts: list[Annotated[str, Field(min_length=1, max_length=1_000)]] = Field(
         min_length=1
     )
+    _call_metadata: ModelCallMetadata | None = PrivateAttr(default=None)
     inferences: list[Annotated[str, Field(min_length=1, max_length=1_000)]] = Field(min_length=1)
     missing_information: list[Annotated[str, Field(min_length=1, max_length=500)]] = Field(
         min_length=1
@@ -71,6 +76,8 @@ class BriefGenerationResult:
     provider: str
     fallback_reason: str | None = None
     model: str | None = None
+    metadata: ModelCallMetadata | None = None
+    attempt_metadata: ModelCallMetadata | None = None
 
 
 @dataclass(frozen=True)
@@ -83,11 +90,14 @@ class GenerationResult:
     fallback_reason: str | None = None
     model: str | None = None
 
+    metadata: ModelCallMetadata | None = None
+    attempt_metadata: ModelCallMetadata | None = None
+
     def to_decision(self) -> DecisionResult:
         """Project an already-generated result, never call a second decision model.
 
         Preserve the full brief and its real generator attribution. The legacy
-        chat path records a requested model, not a resolved model or usage.
+        chat path retains response model/usage only when actually reported.
         Missing-information prose stays with that generator, not Jev.
         """
 
@@ -102,12 +112,45 @@ class GenerationResult:
                 or self.triage.category == "uncertain/review"
                 or self.triage.confidence < UNCERTAINTY_THRESHOLD
             ),
-            metadata=ModelCallMetadata(
+            metadata=self.metadata.model_copy(deep=True) if self.metadata else ModelCallMetadata(
                 provider=self.provider,
                 requested_model=self.model,
                 fallback_reason=self.fallback_reason,
             ),
+            attempt_metadata=self.attempt_metadata,
         )
+
+
+def _safe_identifier(value: object, api_key: str) -> str | None:
+    """Keep bounded identifiers, excluding any echo of the configured credential."""
+    if isinstance(value, str) and api_key and api_key in value:
+        return None
+    if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,199}", value):
+        return value
+    return None
+
+
+def _response_metadata(payload: object, requested_model: str, api_key: str) -> ModelCallMetadata:
+    """Allowlist envelope measurements, not model-controlled JSON or HTTP elapsed time."""
+    envelope = payload if isinstance(payload, dict) else {}
+    usage, cost = reported_usage(
+        envelope.get("usage"), input_key="prompt_tokens", output_key="completion_tokens",
+    )
+    return ModelCallMetadata(
+        provider="openai_compatible",
+        requested_model=_safe_identifier(requested_model, api_key),
+        model=_safe_identifier(envelope.get("model"), api_key),
+        model_version=_safe_identifier(envelope.get("model_version"), api_key),
+        usage=usage, cost=cost, cost_source="provider_usage" if cost is not None else "unknown",
+    )
+
+
+class _UnavailableOutput(ValueError):
+    """Sanitized attempted-call metadata; never retain invalid analytical output."""
+
+    def __init__(self, metadata: ModelCallMetadata) -> None:
+        super().__init__("provider_output_unavailable")
+        self.metadata = metadata
 
 
 class OpenAICompatibleClient:
@@ -129,6 +172,7 @@ class OpenAICompatibleClient:
     def generate(self, request_text: str, evidence: list[Evidence]) -> ModelOutput:
         """Request JSON output then reject anything outside the typed contract."""
 
+        started = perf_counter()
         with httpx.Client(transport=self._transport, timeout=60.0) as client:
             response = client.post(
                 f"{self._base_url}/chat/completions",
@@ -148,16 +192,24 @@ class OpenAICompatibleClient:
             )
         response.raise_for_status()
         payload = response.json()
-        content = payload["choices"][0]["message"]["content"]
-        if not isinstance(content, str):
-            raise ValueError("provider response content was not text")
-        return ModelOutput.model_validate_json(content)
+        metadata = _response_metadata(payload, self._model, self._api_key)
+        metadata.wall_time_ms = (perf_counter() - started) * 1000
+        try:
+            content = payload["choices"][0]["message"]["content"]
+            if not isinstance(content, str):
+                raise ValueError("provider response content was not text")
+            output = ModelOutput.model_validate_json(content)
+        except (IndexError, KeyError, TypeError, ValueError):
+            raise _UnavailableOutput(metadata) from None
+        output._call_metadata = metadata
+        return output
 
     def generate_brief(
         self, request_text: str, evidence: list[Evidence], triage: Triage
     ) -> BriefOutput:
         """Make one prose call, excluding triage from the output contract."""
 
+        started = perf_counter()
         with httpx.Client(transport=self._transport, timeout=60.0) as client:
             response = client.post(
                 f"{self._base_url}/chat/completions",
@@ -179,10 +231,18 @@ class OpenAICompatibleClient:
                 },
             )
         response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-        if not isinstance(content, str):
-            raise ValueError("provider response content was not text")
-        return BriefOutput.model_validate_json(content)
+        payload = response.json()
+        metadata = _response_metadata(payload, self._model, self._api_key)
+        metadata.wall_time_ms = (perf_counter() - started) * 1000
+        try:
+            content = payload["choices"][0]["message"]["content"]
+            if not isinstance(content, str):
+                raise ValueError("provider response content was not text")
+            output = BriefOutput.model_validate_json(content)
+        except (IndexError, KeyError, TypeError, ValueError):
+            raise _UnavailableOutput(metadata) from None
+        output._call_metadata = metadata
+        return output
 
 
 class TriageAndBriefService:
@@ -195,6 +255,17 @@ class TriageAndBriefService:
     def generate(self, request_text: str, evidence: list[Evidence]) -> GenerationResult:
         """Use provider output when valid; otherwise return safe deterministic analysis."""
 
+        started = perf_counter()
+        result = self._generate(request_text, evidence)
+        metadata = result.metadata or ModelCallMetadata(
+            provider=result.provider, requested_model=result.model,
+            fallback_reason=result.fallback_reason,
+        )
+        return replace(result, metadata=metadata.model_copy(update={
+            "wall_time_ms": (perf_counter() - started) * 1000,
+        }))
+
+    def _generate(self, request_text: str, evidence: list[Evidence]) -> GenerationResult:
         if self._client is None:
             if not self._is_configured():
                 return self._fallback(request_text, evidence, "provider_not_configured")
@@ -205,15 +276,21 @@ class TriageAndBriefService:
             )
         try:
             output = self._client.generate(request_text, evidence)
-        except (httpx.HTTPError, KeyError, TypeError, ValueError, ValidationError):
+        except _UnavailableOutput as error:
+            return replace(
+                self._fallback(request_text, evidence, "provider_output_unavailable"),
+                attempt_metadata=error.metadata,
+            )
+        except (httpx.HTTPError, IndexError, KeyError, TypeError, ValueError, ValidationError):
             return self._fallback(request_text, evidence, "provider_output_unavailable")
-        return _result_from_output(
+        result = _result_from_output(
             output,
             evidence,
             provider="openai_compatible",
             model=self._settings.llm_model,
             request_text=request_text,
         )
+        return replace(result, metadata=output._call_metadata)
 
     def _is_configured(self) -> bool:
         return all(
@@ -225,6 +302,19 @@ class TriageAndBriefService:
     ) -> BriefGenerationResult:
         """Generate only prose for a server-selected decision; never call generate()."""
 
+        started = perf_counter()
+        result = self._generate_brief(request_text, evidence, triage)
+        metadata = result.metadata or ModelCallMetadata(
+            provider=result.provider, requested_model=result.model,
+            fallback_reason=result.fallback_reason,
+        )
+        return replace(result, metadata=metadata.model_copy(update={
+            "wall_time_ms": (perf_counter() - started) * 1000,
+        }))
+
+    def _generate_brief(
+        self, request_text: str, evidence: list[Evidence], triage: Triage
+    ) -> BriefGenerationResult:
         if self._client is None:
             if not self._is_configured():
                 return self._brief_fallback(
@@ -246,6 +336,11 @@ class TriageAndBriefService:
                 self._client.generate_brief(request_text, evidence, triage.model_copy(deep=True))
             )
             brief = _prose_brief(output, request_text, evidence, triage)
+        except _UnavailableOutput as error:
+            return replace(
+                self._brief_fallback(request_text, evidence, triage, "provider_output_unavailable"),
+                attempt_metadata=error.metadata,
+            )
         except (httpx.HTTPError, IndexError, KeyError, TypeError, ValueError, ValidationError):
             return self._brief_fallback(
                 request_text, evidence, triage, "provider_output_unavailable"
@@ -254,6 +349,7 @@ class TriageAndBriefService:
             brief=brief,
             provider="openai_compatible",
             model=self._settings.llm_model,
+            metadata=output._call_metadata,
         )
 
     def _brief_fallback(

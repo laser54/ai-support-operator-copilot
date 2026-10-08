@@ -153,7 +153,7 @@ flowchart TD
 ### 📜 Immutable Audit Trail & Idempotency
 * **Ordered Event Sourcing**: Every state transition, tool call input/output summary, and human edit is persisted with strict `(case_id, sequence)` uniqueness.
 * **Exactly-Once Execution**: Primary-key constraints in `mock_incidents` ensure duplicate approvals never create duplicate tickets.
-* **Human Edits as Ground Truth**: Operator modifications override AI inferences and form the case's effective final state.
+* **Explicit Human Labels**: Operational edits affect effective case state, but only voluntary, independently reviewed triage labels supply offline study labels; approval is not ground truth.
 
 </td>
 </tr>
@@ -184,6 +184,7 @@ The system includes five synthetic catalog scenarios with specialized runbooks, 
 | `GET` | `/cases/{case_id}` | Retrieve persisted workflow checkpoint, triage, evidence, brief, and provider provenance | Operator / Reviewer |
 | `POST` | `/cases/{case_id}/clarifications` | Add context and append a revision using the case's chosen triage mode; supports idempotency | System / Re-analysis |
 | `POST` | `/cases/{case_id}/review` | Submit operator corrections, edited customer reply, and approve/reject decision | Human Policy Gate |
+| `POST` | `/cases/{case_id}/triage-labels` | Append an explicit human triage label or linked correction for an analysis revision; never approve or execute | Voluntary Labeling |
 | `GET` | `/cases/{case_id}/trace` | Retrieve immutable, chronological audit trail with correlated event sequence | Audit / Compliance |
 | `GET` | `/artifacts` | List all fixture entries across Knowledge, Incidents, and Service Status | Knowledge Catalog |
 | `POST` | `/artifacts` | Add or update a fixture entry dynamically in the catalogue | Admin / Catalog |
@@ -232,10 +233,10 @@ Case responses and each revision expose:
 
 The existing `provider`, `model`, and `fallback_reason` fields remain brief-generator
 aliases for backward compatibility; they must not be used as Jev decision attribution.
-The legacy LLM transport does not resolve the response model: its
-`decision_metadata.model` stays null and its configured identifier is
-`decision_metadata.requested_model`. Missing historical provenance stays null,
-not inferred from current configuration.
+The LLM transport retains a response `model` and explicit `model_version` only
+when reported; otherwise they stay null. Its configured request identifier is
+`requested_model`, distinct from the response model. Missing historical
+provenance stays unknown, not inferred from current configuration.
 
 `POST /cases/{case_id}/clarifications` needs no mode field and offers no mode
 override in this slice. It preserves the requested mode even when the actual
@@ -245,6 +246,79 @@ without a mode use `llm` for their next analysis; their historical mode remains 
 Every intake/re-analysis stops at `awaiting_human_review`. Approval is still a
 separate human `POST /cases/{case_id}/review`; no automatic write is authorized.
 This backend slice adds no UI controls or production activation.
+
+### Per-run measurements and voluntary triage labels (backend, issue #18)
+
+Every new analysis revision retains separate `decision_metadata` and
+`prose_metadata`, plus `decision_wall_time_ms`, `prose_generation_wall_time_ms`,
+and `analysis_wall_time_ms`. These are nonnegative application wall times in
+milliseconds, not provider latency. Analysis time covers decision/prose
+generation and result assembly, not intake persistence or evidence gathering.
+`provider_latency_ms` is unknown (null); neither adapter has a documented true
+provider-latency measurement. In LLM mode `generation_call_scope` is
+`shared_triage_and_prose`: the two stage times and usage views describe ONE
+shared call and must not be added. Jev mode is `separate_decision_and_prose`.
+
+Usage contains only reported input/output counts, including genuinely reported
+zero counts; missing or invalid individual quantities remain null (unknown),
+not assumed zero. `cost` is provider-reported only, with
+`cost_source=provider_usage|unknown`. A separate `cost_estimate` is labeled
+`source=versioned_price_table_estimate` and records USD rates, exact provider/model,
+and `price_table_version`. Estimates require both actual token counts and an
+exact match in the small pinned table in `app/decisions/pricing.py`. The table
+contains the reviewed TypeSafe Jev snapshot only; model aliases and arbitrary
+OpenAI-compatible transports are not priced. Estimates are not invoices and
+never replace reported cost. There is no assumed-token spending dashboard.
+Malformed analytical output can still be billed: sanitized measurements from
+that call are retained in `decision_attempt_metadata` / `prose_attempt_metadata`,
+separate from actual deterministic fallback provenance, without retaining raw
+provider output. Legacy missing measurements remain unknown.
+
+Voluntary labeling is a separate endpoint; a complete classified example is:
+
+```json
+{
+  "revision_number": 1,
+  "reviewer": "synthetic-reviewer-01",
+  "human_reviewed": true,
+  "outcome": "classified",
+  "category": "incident/access",
+  "priority": "P1",
+  "risk": "high"
+}
+```
+
+Send this to `POST /cases/{case_id}/triage-labels`. All seven fields are required;
+`human_reviewed` must be the boolean true. For `outcome=uncertain/review`, the
+category/priority/risk fields must still be supplied explicitly, but may be null.
+Unknown case/revision returns 404; invalid input returns 422. Corrections require
+`supersedes_label_id` referencing the latest label on that same case/revision;
+unlinked, stale, or cross-revision corrections return 409. Previous labels remain
+in append-only history with reviewer, server-assigned label ID/time, and audit.
+Case JSON exposes `triage_labels` and `revision_labels` (each revision's
+`label_status=labeled|unlabeled`, label IDs, and history). Unlabeled never means
+incorrect, approved, rejected, or a model-inferred label. Labeling changes no
+predictions, review/draft, approval, case version, status, or mock execution.
+Completed/rejected cases may also be labeled. Existing review clients are unchanged.
+
+For offline study, call
+`app.triage_labels.load_synthetic_triage_labels("fixtures/triage_labels.json")`.
+This validation-only importer reads an explicitly synthetic, schema-version-1
+JSON file with fixture/revision identities and explicit human-reviewed fields;
+it never reads approvals or writes operational cases. The committed example
+labels are synthetic demonstrations, not measured evaluation ground truth.
+
+Retention/minimization: this remains a local synthetic demo without authentication
+or an automatic expiry job. Use pseudonymous reviewer IDs and avoid personal
+details in optional comments. Retain study exports only for the stated study;
+purge them when it ends. Runtime labels/measurements share case/checkpoint
+retention, so demo cleanup must remove both JSON copies and associated audit
+records together, including exported copies/backups. Audit summaries contain
+only bounded provenance/reason codes, label IDs, revision linkage and outcome;
+new metadata does not log raw model payloads, label comments, or classification
+text. Full retention and redaction boundaries are in `docs/architecture.md`.
+No migration, new environment variable, dependency, frontend, benchmark, or
+production activation is introduced.
 
 ---
 

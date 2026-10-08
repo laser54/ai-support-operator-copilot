@@ -25,6 +25,15 @@ from app.persistence.database import get_session
 from app.persistence.repositories import CaseRepository
 from app.rate_limit import IntakeRateLimiter, client_id_from_request
 from app.review import CaseNotFoundError, ReviewConflictError, ReviewDraftInput, ReviewService
+from app.triage_labels import (
+    RevisionLabels,
+    TriageLabel,
+    TriageLabelConflictError,
+    TriageLabelInput,
+    TriageLabelRevisionNotFoundError,
+    TriageLabelService,
+    revision_label_views,
+)
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -76,6 +85,8 @@ class CaseResponse(AnalysisProvenance):
     clarifications: list[dict[str, object]] = Field(default_factory=list)
     revisions: list[dict[str, object]] = Field(default_factory=list)
     current_revision: int = Field(default=1, ge=1)
+    triage_labels: list[TriageLabel] = Field(default_factory=list)
+    revision_labels: list[RevisionLabels] = Field(default_factory=list)
 
 
 class ReviewRequest(BaseModel):
@@ -136,6 +147,10 @@ def _response(state: dict[str, object]) -> CaseResponse:
     provenance = AnalysisProvenance.model_validate(
         {key: state.get(key) for key in PROVENANCE_KEYS}
     )
+    labels = [
+        TriageLabel.model_validate(label)
+        for label in cast(list[dict[str, object]], state.get("triage_labels") or [])
+    ]
 
     return CaseResponse(
         **provenance.model_dump(),
@@ -156,6 +171,10 @@ def _response(state: dict[str, object]) -> CaseResponse:
         clarifications=cast(list[dict[str, object]], state.get("clarifications") or []),
         revisions=revisions,
         current_revision=int(str(state.get("current_revision", len(revisions)))),
+        triage_labels=labels,
+        # Keep immutable analysis snapshots exact, including legacy snapshots.
+        # Human-label status is a separate per-revision read-time projection.
+        revision_labels=revision_label_views(revisions, labels),
     )
 
 
@@ -269,6 +288,23 @@ def get_case(case_id: UUID, session: Session = Depends(get_session)) -> CaseResp
     if workflow_state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
     return _response(workflow_state)
+
+
+@router.post(
+    "/{case_id}/triage-labels", response_model=CaseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_triage_label(
+    case_id: UUID, payload: TriageLabelInput, session: Session = Depends(get_session)
+) -> CaseResponse:
+    """Voluntarily label an analysis revision without reviewing or approving actions."""
+    try:
+        state = TriageLabelService(CaseRepository(session)).append(case_id, payload)
+    except (CaseNotFoundError, TriageLabelRevisionNotFoundError) as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except TriageLabelConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    return _response(state)
 
 
 @router.post("/{case_id}/review", response_model=CaseResponse)

@@ -21,6 +21,21 @@ class Usage(BaseModel):
     output_tokens: TokenCount | None = None
 
 
+class CostEstimate(BaseModel):
+    """An estimate, never a provider invoice or a replacement for reported cost."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    amount: NonnegativeMetric
+    currency: Literal["USD"]
+    source: Literal["versioned_price_table_estimate"]
+    price_table_version: str
+    priced_provider: str
+    priced_model: str
+    input_usd_per_million_tokens: NonnegativeMetric
+    output_usd_per_million_tokens: NonnegativeMetric
+
+
 class ModelCallMetadata(BaseModel):
     """Non-sensitive provenance for one decision or generation call."""
 
@@ -32,9 +47,11 @@ class ModelCallMetadata(BaseModel):
     model_version: str | None = Field(default=None, max_length=200)
     fallback_reason: str | None = Field(default=None, max_length=100)
     wall_time_ms: NonnegativeMetric | None = None
+    provider_latency_ms: NonnegativeMetric | None = None
     usage: Usage | None = None
     cost: NonnegativeMetric | None = None
     cost_source: str = "unknown"
+    cost_estimate: CostEstimate | None = None
     rubric_version: str | None = Field(default=None, max_length=100)
 
 
@@ -47,6 +64,9 @@ class DecisionResult(BaseModel):
     actual_mode: ActualMode
     uncertain: bool
     metadata: ModelCallMetadata
+    # Internal transport observation, exposed separately in AnalysisProvenance;
+    # keep the existing decision-only serialization shape unchanged.
+    attempt_metadata: ModelCallMetadata | None = Field(default=None, exclude=True)
 
 
 class AnalysisProvenance(BaseModel):
@@ -61,6 +81,15 @@ class AnalysisProvenance(BaseModel):
     prose_provider: str | None = None
     prose_model: str | None = None
     prose_fallback_reason: str | None = None
+    prose_metadata: ModelCallMetadata | None = None
+    decision_attempt_metadata: ModelCallMetadata | None = None
+    prose_attempt_metadata: ModelCallMetadata | None = None
+    decision_wall_time_ms: NonnegativeMetric | None = None
+    prose_generation_wall_time_ms: NonnegativeMetric | None = None
+    analysis_wall_time_ms: NonnegativeMetric | None = None
+    generation_call_scope: Literal[
+        "shared_triage_and_prose", "separate_decision_and_prose"
+    ] | None = None
 
 
 PROVENANCE_KEYS = tuple(AnalysisProvenance.model_fields)

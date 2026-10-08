@@ -6,9 +6,10 @@ This document is the authoritative sequential implementation guide for the repos
 
 **Current milestone:** MVP vertical slice
 
-**Current phase:** 11 — Explicit per-case triage mode (backend, issue #16), completed
-**Overall status:** Backend issues #15 and #16 complete; frontend 9.7 complete,
-9.8 deployment remains planned. Issues #17–#19 remain separate follow-ups.
+**Current phase:** 12 — Per-run provenance and voluntary human triage labels (backend, issue #18), completed
+**Overall status:** Backend issues #15, #16 and #18 complete; frontend 9.7 complete,
+9.8 deployment remains planned. Issues #17 and #19 remain separate follow-ups;
+umbrella #14 remains open.
 
 ## Status legend
 
@@ -344,6 +345,85 @@ roadmap. No new environment variable; `.env.example` unchanged.
 Follow-up: #17 UI mode controls; #18 broader provenance/labels; #19 offline benchmark
 and calibration on independently human-labeled data. PostgreSQL integration remains
 to be run with `TEST_DATABASE_URL`. No production activation is implied.
+
+### 12. Per-run provenance and voluntary human triage labels (issue #18) — completed
+
+**Dependencies:** phase 11 completed; backend slice independent of frontend
+deployment phase 9.8 and UI issue #17. Umbrella #14 remains open.
+
+**Deliverables:** optional per-revision decision/prose metadata with requested
+versus actual model attribution, available version identity, independent fallback
+causes, distinct nonnegative wall-time fields and explicit shared-call scope for
+the existing single-call LLM path; unknown true provider latency; independently
+validated reported token quantities and cost; separate sanitized billed-failure
+attempt metadata; separately labeled estimates using actual complete usage and
+an exact provider/model entry in a small immutable versioned price snapshot.
+Voluntary, validated human triage labels and `uncertain/review` outcomes with
+reviewer, revision, label IDs/time, explicit correction linkage, append-only
+history, atomic audit and read-time labeled/unlabeled projections; no change to
+approval, effective predictions, review/draft, version or execution. Synthetic
+JSON fixture importer has no operational persistence or approval dependency.
+Legacy missing measurements remain unknown. Retention/minimization and new
+metadata logging boundaries are documented. No migration or new table.
+
+**Acceptance criteria:** intake and clarification/repository tests retain
+requested/actual decision provenance independently from prose; every new revision
+has honest nonnegative timings and missing measurements stay unknown; only
+complete actual usage plus pinned price metadata yields an estimate distinct
+from reported cost. Label tests require explicit human-reviewed fields and a
+valid revision, distinguish unlabeled from labeled, retain corrections/audit,
+and prove approval/executor independence. Fixture import validates real synthetic
+files without using operational approvals. Legacy and existing human review
+flows remain compatible. Re-analysis retains its row lock through one final
+state/audit transaction to protect label history from stale checkpoint writes.
+
+Completed: 2026-10-08
+Scope: Issue #18 backend provenance, usage/wall-time measurements, pinned
+historical cost estimates, voluntary human labels/corrections and synthetic
+fixture import. No frontend, aggregate evaluation, live customer data, raw
+payload store, dependency/lockfile change, production activation or deploy change.
+Verification: Test-first RED: `env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m pytest tests/test_triage_labels.py -q`
+returned 43 failures before the label implementation. Before provenance
+implementation, `env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m pytest tests/test_analysis_provenance.py -q`
+returned 16 failed, 5 passed for absent metadata/timing/pricing support.
+Additional billed-invalid-output, independent-telemetry and transaction regressions
+were demonstrated RED (9 failed, 20 passed) before their implementation.
+Final focused command `env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m pytest tests/test_analysis_provenance.py tests/test_triage_labels.py tests/test_label_reanalysis_transaction.py -q`
+returned 96 passed (GREEN). Full command
+`env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m pytest -q`
+returned 285 passed, 8 skipped; PostgreSQL tests require `TEST_DATABASE_URL`,
+and no skips were fabricated. Two existing dependency deprecation warnings
+remain. `env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m ruff check .` clean;
+`env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m mypy app` clean (31 source
+files); `git diff --check` clean. No live inference or production writes were
+performed. The pinned price snapshot was verified through the public read-only
+OpenRouter endpoint-price API; tests use synthetic/injected providers only.
+Independent review follow-up: Both chat metadata paths explicitly discard bounded
+identifiers containing the configured credential, including invalid-output attempt
+metadata. Labeling legacy cases atomically retains a deep-copied revision-1
+snapshot, separate from later operational review edits. Cost arithmetic/range or
+validation errors return an unknown estimate without aborting analysis/fallback
+or changing provider-reported usage/cost; nonzero float underflow is not zero cost.
+Follow-up verification: Baseline full suite was 285 passed, 8 skipped. Before
+production changes, `env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m pytest -q tests/test_review_findings.py --tb=short`
+returned 15 failed (RED); the identical command then returned 15 passed (GREEN).
+Regressions cover synthetic credential echoes (exact/embedded, both chat paths,
+valid/invalid content, API/revision/checkpoint serialization), legacy label then
+priority/reply review edits, enormous mock-envelope token counts in successful
+and fallback analysis, and Decimal overflow/non-finite/validation/underflow cases.
+The existing legacy-label test now expects the retained snapshot.
+`env -u PYTHONPATH -u PYTHONHOME .venv/bin/python -m pytest -q` returned 300 passed,
+8 skipped (PostgreSQL requires `TEST_DATABASE_URL`), with the same two dependency
+warnings. `.venv/bin/python -m ruff check .`, `.venv/bin/python -m mypy app`
+(31 source files) and `git diff --check` passed. No token contract, migration,
+dependency, lockfile, frontend, deployment or approval/execution change.
+Documentation: Updated `README.md`, `docs/architecture.md`, and this roadmap.
+No genuine new configuration variable; `.env.example` unchanged.
+Follow-up: #17 UI controls, #19 offline evaluation/calibration on independently
+human-reviewed study data. Run PostgreSQL integration with `TEST_DATABASE_URL`
+before claiming database concurrency coverage. Authentication and automatic
+retention enforcement remain outside this local synthetic slice; no production
+activation is implied. Umbrella #14 remains open.
 
 ## MVP boundaries
 

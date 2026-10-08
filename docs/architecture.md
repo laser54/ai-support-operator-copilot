@@ -106,8 +106,9 @@ review-needed fallback with a bounded `fallback_reason`; the adapter never
 retries through the LLM path and never generates prose. The existing LLM
 decision path exposes the same narrow `DecisionService` projection without an
 extra model call. Thresholds are uncalibrated heuristics pending
-independently human-labeled development data; UI controls, broader provenance/labels,
-and offline evaluation remain follow-ups in issues #17–#19.
+independently human-labeled development data. Backend provenance/labels are
+implemented in issue #18 below; UI controls (#17) and offline evaluation (#19)
+remain separate follow-ups.
 
 ### Explicit per-case decision mode and revisions (issue #16)
 
@@ -134,8 +135,9 @@ model, decision fallback reason and available measurements), and separate
 the latest JSON checkpoint and every revision; no database migration is needed.
 GET, intake, clarification, and human-review responses expose that provenance.
 For compatibility, existing `provider`, `model`, and `fallback_reason` continue
-to describe the brief generator. The legacy LLM model is a requested identifier,
-not a resolved response model; no provider version, usage, timing or cost is invented.
+to describe the brief generator. The legacy LLM model alias is a requested
+identifier; response model/version and provider measurements are now retained
+separately when actually reported, never inferred from that alias.
 The `brief_built` audit summary explicitly distinguishes decision and prose providers
 and their fallback reasons; no prose call is hidden as a Jev-generated brief.
 
@@ -160,6 +162,119 @@ The graph still has no executor edge. Both paths stop at the same policy gate;
 only the separate human review API can approve a mock write. This slice does not
 modify UI, production deployment, dependencies, or approval policy, and introduces
 no shadow/dual decision execution, benchmark, or label schema.
+
+### Per-run provenance, measurement and label boundary (issue #18)
+
+`AnalysisProvenance` adds optional `prose_metadata`, distinct stage wall times,
+`analysis_wall_time_ms`, `generation_call_scope`, and separate failed-provider
+attempt metadata. The same JSON snapshot is exposed at intake, GET, review,
+and re-analysis. No table or migration is added: provenance and label history
+live in `cases.workflow_state` and `workflow_checkpoints.state`.
+
+Timing uses a monotonic application clock. Decision and prose wall times surround
+the selected service calls, including validation/fallback overhead. End-to-end
+analysis wall time surrounds `_analyze` (decision, prose, mapping and snapshot
+assembly); it excludes evidence lookup, audit/database work and total HTTP
+request duration. Adapter `wall_time_ms` measures its own call boundary and
+may differ from the enclosing stage time. These values are never provider
+latency: `provider_latency_ms` remains null because neither transport exposes
+a reviewed latency metric. In LLM mode the original one-call behavior remains;
+both stage measurements cover that same call, explicitly marked
+`shared_triage_and_prose`. Their token/cost views are shared, not additive.
+Jev marks `separate_decision_and_prose` and has two separately attributed calls.
+
+The chat adapter extracts only an allowlist of envelope model/version and
+reported usage/cost. Provenance is a private transport observation, not a field
+the analytical JSON can supply. Response model identifiers are bounded tokens;
+values containing the configured LLM credential are discarded before either
+successful-call or invalid-output attempt metadata is retained, for both triage
+and prose calls. Unknown backend provider identity is not inferred from a
+compatible transport.
+The Jev adapter retains its validated actual provider and model snapshot;
+the dated model identifier is itself the available version identity, and no
+separate `model_version` is invented. Missing/invalid quantities are unknown
+(JSON null or absent on old revision metadata); valid measurements are retained
+independently rather than erased by another invalid telemetry field.
+
+When a provider reports valid usage/cost but analytical output is invalid,
+`decision_attempt_metadata` or `prose_attempt_metadata` retains only those
+sanitized observations. The actual fallback's metadata still reports
+`deterministic_fallback` with unknown provider usage/cost. A shared failed LLM
+call appears in both attempt views, again not additive. Transport failures
+without measurements remain unknown. No response payload warehouse is created.
+
+`cost` and `cost_source=provider_usage|unknown` retain the provider's reported
+quantity only; this is not a derived estimate and its currency is not inferred
+for arbitrary compatible transports. `cost_estimate` is separate and includes
+`source=versioned_price_table_estimate`, currency, exact priced provider/model,
+input/output USD rates and price-table version. `app.decisions.pricing` pins an
+immutable, human-reviewable historical table to the TypeSafe Jev dated model
+and OpenRouter endpoint-price snapshot, retrieved 2026-10-08. It computes an
+estimate using Decimal only when both actual counts and the exact table entry
+exist. Unknown costs stay null, not zero. Missing counts, aliases, unknown
+providers and unreviewed prose transports have no estimate. Arithmetic, numeric
+range and validation failures also leave the estimate null without aborting
+analysis or fallback; nonzero amounts that underflow to float zero are unknown.
+Reported usage/cost remains unchanged. Rates must be reviewed and the table
+version changed before adding another model. Estimates
+exclude unreported fees/discounts and are neither invoice nor spend aggregate.
+
+`app.triage_labels` defines a separate human-label contract and service. The
+voluntary `POST /cases/{case_id}/triage-labels` requires explicit human-reviewed
+attestation, reviewer identity, existing revision number, outcome and explicitly
+supplied category/priority/risk. A classified outcome requires all classification
+values; `uncertain/review` permits explicitly null values without copying model
+predictions. This contract contains no `ReviewDecision`, `ReviewEdits`, approval,
+or action-execution field. An attestation is self-declared in this unauthenticated
+local demo, not verified identity or evidence that a human actually reviewed it.
+
+Labels receive server-assigned IDs/times and append to case-level JSON history;
+corrections must link to the latest label on the same revision, preserving prior
+labels. The API returns case-wide history plus a separate `revision_labels`
+projection with `labeled|unlabeled` status and label IDs. Analysis snapshots are
+not modified. Missing legacy history projects as unlabeled revision 1; reads do
+not persist synthetic history. When a legacy case is labeled, revision 1 is
+deep-copied into a persisted snapshot in the label transaction, so later
+operational review edits cannot alter the labeled analysis. Labeling leaves
+predictions, effective triage,
+review/draft, version, status and approvals untouched and never invokes the
+executor. Label/audit persistence uses one transaction under existing case and
+checkpoint row locks with rollback on failure. Re-analysis now retains those
+locks through its final state/audit commit, so a stale checkpoint cannot erase
+labels committed by another writer. This serializes label/review requests during
+generation on PostgreSQL; SQLite transaction tests do not claim row-lock coverage.
+
+`load_synthetic_triage_labels(path)` validates a real JSON file marked
+`synthetic: true`, `schema_version: 1`, with unique fixture/revision identities
+and explicit human-reviewed fields. It has no repository/write capability,
+does not derive labels from approvals, and cannot supersede live label IDs.
+`fixtures/triage_labels.json` contains synthetic example annotations only;
+they are not observed benchmark results or production ground truth.
+
+### Metadata minimization, redaction and retention
+
+The new persisted metadata contains bounded provider/model identifiers, reason
+codes, timings, quantities, price provenance and label revision/reviewer linkage,
+not credentials, endpoint URLs, exception messages, prompt text, response IDs,
+raw answers, distributions or raw provider payloads. No new provider logging is
+added. New analysis audit summaries log only bounded execution provenance and
+fallback codes; label audit logs retain IDs, revision, outcome and reviewer
+identity, not category text, comments or request/response content. Reviewer IDs
+should be pseudonymous; optional comments should contain no customer or personal
+data. This is a rule for the new metadata, not a claim that existing intake or
+clarification audit summaries are safe for live customer content.
+
+Runtime metadata and labels have the same lifetime as the case/checkpoint and
+associated audit records. There is no automatic TTL, retention scheduler, new
+store or production activation in this slice. For synthetic local demos, remove
+the case, mirrored checkpoint, audit records, exports and backup copies together
+when the demo/study ends. Offline study exports should contain only fixture IDs,
+revision references, minimized measurements/labels and pseudonymous reviewers;
+restrict access and purge exports after the declared study purpose ends. A real
+deployment needs authenticated reviewer identity, an explicit retention period,
+coordinated deletion/access policy and redaction of existing content-bearing
+audit paths before activation. Corrections are append-only within retention;
+they do not imply indefinite retention of personal data.
 
 ## State model
 
