@@ -33,6 +33,7 @@ LangGraph case workflow
         +--> similar-case tool (fixtures)
         +--> service-status tool (fixtures)
         +--> OpenAI-compatible LLM (optional; structured JSON only)
+        +--> Jev System One decision adapter (explicit per-case opt-in)
         +--> mock ticketing write tool
 ```
 
@@ -92,8 +93,8 @@ fallback reasons (`provider_not_configured` or `provider_output_unavailable`),
 never a provider exception message, response body, or credential. Case JSON
 includes `provider`, `fallback_reason`, and `model`.
 
-`app.decisions` (issue #15) adds a narrow server-side Jev System One adapter that
-is callable but NOT wired into the live intake workflow. It POSTs
+`app.decisions` (issue #15) provides a narrow server-side Jev System One adapter,
+wired into the intake workflow by explicit mode selection in issue #16. It POSTs
 `{model, state, questions}` to the OpenRouter System One endpoint with the
 pinned model `typesafe/jev-1.13`, using a backend-only `JEV_API_KEY` that never
 reaches the browser, and validates typed `choice`/`score`/`noul` answers against
@@ -105,8 +106,60 @@ review-needed fallback with a bounded `fallback_reason`; the adapter never
 retries through the LLM path and never generates prose. The existing LLM
 decision path exposes the same narrow `DecisionService` projection without an
 extra model call. Thresholds are uncalibrated heuristics pending
-independently human-labeled development data; see issues #16–#19 for mode
-selection, provenance persistence, UI, and offline evaluation.
+independently human-labeled development data; UI controls, broader provenance/labels,
+and offline evaluation remain follow-ups in issues #17–#19.
+
+### Explicit per-case decision mode and revisions (issue #16)
+
+`CreateCaseRequest.triage_mode` is a validated `llm | jev` literal, defaulting to
+`llm`; invalid values return HTTP 422. The server selects exactly one decision
+path in `CaseWorkflow._analyze`, shared by intake and clarification re-analysis:
+
+- `llm`: call `TriageAndBriefService.generate()` once, unchanged. Its existing
+  triage, brief, proposals, and deterministic fallback are retained. The neutral
+  `to_decision()` projection supplies decision metadata without another call.
+- `jev`: call `JevDecisionService.decide()` once. Then call
+  `TriageAndBriefService.generate_brief()` for prose only, not `generate()`.
+  `BriefOutput` forbids triage, actions, approvals, and execution fields. The
+  prose prompt treats selected triage as read-only context and does not request
+  classification. Application code constructs proposed actions using the selected
+  decision's risk, and merges its review-needed missing information into the brief.
+  Malformed prose, transport failure, or absent LLM configuration uses deterministic
+  prose; it never changes or repeats the decision.
+
+Both paths persist `triage_mode` (requested), `actual_mode` (decision path),
+`uncertain`, `decision_metadata` (the adapter's actual provider/model, requested
+model, decision fallback reason and available measurements), and separate
+`prose_provider`, `prose_model`, `prose_fallback_reason`. These are stored in
+the latest JSON checkpoint and every revision; no database migration is needed.
+GET, intake, clarification, and human-review responses expose that provenance.
+For compatibility, existing `provider`, `model`, and `fallback_reason` continue
+to describe the brief generator. The legacy LLM model is a requested identifier,
+not a resolved response model; no provider version, usage, timing or cost is invented.
+The `brief_built` audit summary explicitly distinguishes decision and prose providers
+and their fallback reasons; no prose call is hidden as a Jev-generated brief.
+
+Jev missing configuration, timeout, or invalid output yields the adapter's
+`actual_mode=deterministic_fallback`, `uncertain=True`, `uncertain/review`, P3/high-risk
+decision with mandatory human-review missing information and a bounded reason
+(`jev_not_configured`, `jev_timeout`, `jev_invalid_output`; HTTP/transport reasons
+remain supported). The requested mode stays `jev`; LLM decision fallback is forbidden.
+Prose fallback (`provider_not_configured` or `provider_output_unavailable`) is
+independent and recorded separately.
+
+Clarification requests have no mode field or override in this slice. Re-analysis
+uses the persisted requested mode, including after a prior Jev fallback, and
+appends a fresh snapshot. Identical idempotent replay returns persisted state
+without model calls or new revisions. Legacy checkpoints lacking a mode default
+to `llm` for the next run, but missing historical mode/provenance fields return
+null, never a fabricated provider or retroactively inferred mode. If legacy
+revision history is absent, the checkpoint projection also leaves an unknown
+creation timestamp null rather than inventing one on each GET.
+
+The graph still has no executor edge. Both paths stop at the same policy gate;
+only the separate human review API can approve a mock write. This slice does not
+modify UI, production deployment, dependencies, or approval policy, and introduces
+no shadow/dual decision execution, benchmark, or label schema.
 
 ## State model
 

@@ -53,7 +53,7 @@ flowchart TD
     subgraph Orchestrator ["Agentic State Machine (LangGraph)"]
         N_Intake["1. intake\n(Persist Case Record)"]
         N_Evidence["2. gather_evidence\n(Parallel Tool Execution)"]
-        N_Brief["3. build_brief\n(LLM Analysis or Fallback)"]
+        N_Brief["3. build_brief\n(Selected Triage + Attributed Prose)"]
         N_Gate["4. policy_gate\n(Block Writes & Await Human)"]
     end
 
@@ -63,9 +63,10 @@ flowchart TD
         T_Status["check_service_status\n(Signals: status-*)"]
     end
 
-    subgraph Intelligence ["Model Boundary (OpenAI-Compatible & Fallback)"]
+    subgraph Intelligence ["Decision & Prose Boundaries (Explicit Per-Case Mode)"]
         LLM["OpenCode Go / DeepSeek V4\n(Structured JSON Contract)"]
-        Fallback["Deterministic Offline Engine\n(Request-Shaped Heuristics)"]
+        Jev["Jev System One\n(Decision Only; Opt-In)"]
+        Fallback["Deterministic Fallbacks\n(Request-Shaped / Review-Needed)"]
     end
 
     subgraph HumanGate ["Human-in-the-Loop Boundary"]
@@ -90,9 +91,11 @@ flowchart TD
     N_Evidence --> T_Status
     T_KB & T_Cases & T_Status -->|"Validated Evidence[]"| N_Brief
 
-    N_Brief -->|"Structured Prompt"| LLM
+    N_Brief -->|"llm: Triage + Prose; jev: Prose Only"| LLM
+    N_Brief -->|"jev: One Decision Call"| Jev
     LLM -.->|"Failure / Timeout"| Fallback
-    LLM & Fallback -->|"ModelOutput"| N_Brief
+    Jev -.->|"Failure: Review-Needed Decision"| Fallback
+    LLM & Jev & Fallback -->|"Validated Outputs"| N_Brief
 
     N_Brief --> N_Gate
     N_Gate -->|"Persist State"| PG
@@ -177,13 +180,71 @@ The system includes five synthetic catalog scenarios with specialized runbooks, 
 | Method | Endpoint | Description | Role / Gate |
 |---|---|---|---|
 | `GET` | `/cases` | List cases with server-side pagination, search (text, UUID), and filters (status, priority) | Operator / Queue |
-| `POST` | `/cases` | Create a case and run LangGraph intake through evidence gathering to the review gate | System / Intake |
+| `POST` | `/cases` | Create a case with optional `triage_mode` (`llm` default or `jev`) and run to the review gate | System / Intake |
 | `GET` | `/cases/{case_id}` | Retrieve persisted workflow checkpoint, triage, evidence, brief, and provider provenance | Operator / Reviewer |
+| `POST` | `/cases/{case_id}/clarifications` | Add context and append a revision using the case's chosen triage mode; supports idempotency | System / Re-analysis |
 | `POST` | `/cases/{case_id}/review` | Submit operator corrections, edited customer reply, and approve/reject decision | Human Policy Gate |
 | `GET` | `/cases/{case_id}/trace` | Retrieve immutable, chronological audit trail with correlated event sequence | Audit / Compliance |
 | `GET` | `/artifacts` | List all fixture entries across Knowledge, Incidents, and Service Status | Knowledge Catalog |
 | `POST` | `/artifacts` | Add or update a fixture entry dynamically in the catalogue | Admin / Catalog |
 | `DELETE` | `/artifacts/{source_id}` | Remove a fixture entry from the active catalogue | Admin / Catalog |
+
+### Explicit triage mode (backend, issue #16)
+
+Existing intake clients need no changes:
+
+```json
+{"request_text": "Portal login HTTP 500 after update"}
+```
+
+Omitting `triage_mode` is equivalent to `"triage_mode": "llm"`: the existing
+single LLM triage-and-brief call and deterministic fallback are unchanged.
+To opt in to a Jev decision for one case:
+
+```json
+{"request_text": "Portal login HTTP 500 after update", "triage_mode": "jev"}
+```
+
+Only `llm` and `jev` are accepted; any other value (including null) returns
+HTTP 422 before creating a case or calling a provider. In `jev` mode the backend
+calls the decision adapter once, then uses the existing generative service's
+prose-only contract for facts, inferences, missing information, and the reply.
+There is no second LLM triage or shadow decision. Prose is attributed to
+`openai_compatible` or `deterministic_fallback`, never to Jev.
+
+Jev uses the existing backend-only `JEV_API_KEY` and `JEV_TIMEOUT_SECONDS`
+(15 seconds by default). Missing Jev configuration, a timeout, or invalid
+output produces `actual_mode: "deterministic_fallback"`, `uncertain: true`,
+`uncertain/review` triage (P3/high risk), and review-needed missing information.
+Decision fallback reasons include `jev_not_configured`, `jev_timeout`, and
+`jev_invalid_output`; the backend does not switch the decision to an LLM.
+The separate prose call can also fall back independently.
+
+Case responses and each revision expose:
+
+| Field | Meaning |
+|---|---|
+| `triage_mode` | Requested mode (`llm` or `jev`), retained across clarifications |
+| `actual_mode` | Actual decision path (`llm`, `jev`, or `deterministic_fallback`) |
+| `uncertain` | Uncertainty reported by the decision path |
+| `decision_metadata` | Actual decision provider, resolved `model` when known, `requested_model`, decision `fallback_reason`, and available adapter measurements |
+| `prose_provider`, `prose_model`, `prose_fallback_reason` | Separate brief generator and its requested model/fallback |
+
+The existing `provider`, `model`, and `fallback_reason` fields remain brief-generator
+aliases for backward compatibility; they must not be used as Jev decision attribution.
+The legacy LLM transport does not resolve the response model: its
+`decision_metadata.model` stays null and its configured identifier is
+`decision_metadata.requested_model`. Missing historical provenance stays null,
+not inferred from current configuration.
+
+`POST /cases/{case_id}/clarifications` needs no mode field and offers no mode
+override in this slice. It preserves the requested mode even when the actual
+decision falls back, appends new provenance without replacing earlier revisions,
+and does not rerun providers on an identical idempotent replay. Old checkpoints
+without a mode use `llm` for their next analysis; their historical mode remains unknown.
+Every intake/re-analysis stops at `awaiting_human_review`. Approval is still a
+separate human `POST /cases/{case_id}/review`; no automatic write is authorized.
+This backend slice adds no UI controls or production activation.
 
 ---
 
@@ -307,7 +368,7 @@ npm run test:e2e
 ai-support-operator-copilot/
 ├── app/
 │   ├── api/             # FastAPI REST routes, schemas, rate-limiting
-│   ├── decisions/       # Jev System One typed-decision adapter (callable only, not live-wired)
+│   ├── decisions/       # Typed decision contracts & opt-in Jev System One adapter
 │   ├── domain/          # Pydantic contracts (Case, Evidence, Triage, AuditEvent)
 │   ├── graph/           # LangGraph StateGraph, nodes, policy gate
 │   ├── llm/             # OpenAI-compatible JSON client & deterministic fallback

@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
+from app.decisions.contracts import PROVENANCE_KEYS, AnalysisProvenance, TriageMode
+from app.decisions.jev import JevDecisionService
 from app.domain.contracts import (
     AuditEvent,
     CaseStatus,
@@ -17,7 +19,7 @@ from app.domain.contracts import (
     ReviewDecision,
     ReviewEdits,
 )
-from app.graph.workflow import CaseWorkflow
+from app.graph.workflow import CaseWorkflow, legacy_revision
 from app.llm.service import TriageAndBriefService
 from app.persistence.database import get_session
 from app.persistence.repositories import CaseRepository
@@ -33,6 +35,7 @@ class CreateCaseRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     request_text: str = Field(min_length=1, max_length=10_000)
+    triage_mode: TriageMode = "llm"
 
 
 class AddClarificationRequest(BaseModel):
@@ -53,7 +56,7 @@ class AddClarificationRequest(BaseModel):
         return value
 
 
-class CaseResponse(BaseModel):
+class CaseResponse(AnalysisProvenance):
     """Persisted workflow state exposed by the API."""
 
     model_config = ConfigDict(extra="forbid")
@@ -122,22 +125,20 @@ class TraceResponse(BaseModel):
 def _response(state: dict[str, object]) -> CaseResponse:
     revisions = cast(list[dict[str, object]], state.get("revisions"))
     if not revisions:
-        revisions = [
-            {
-                "revision_number": 1,
-                "created_at": str(state.get("created_at") or datetime.now(UTC).isoformat()),
-                "triggered_by": "intake",
-                "clarification_id": None,
-                "triage": state.get("triage") or {},
-                "evidence": state.get("evidence") or [],
-                "resolution_brief": state.get("resolution_brief") or {},
-                "provider": str(state.get("provider") or "deterministic_fallback"),
-                "fallback_reason": state.get("fallback_reason"),
-                "model": state.get("model"),
-            }
-        ]
+        revisions = [legacy_revision(state)]
+
+    # Normalize only the response, not persisted legacy history. Never infer a
+    # past mode/provider from today's settings or the old generator aliases.
+    revisions = [
+        {**revision, **{key: revision.get(key) for key in PROVENANCE_KEYS}}
+        for revision in revisions
+    ]
+    provenance = AnalysisProvenance.model_validate(
+        {key: state.get(key) for key in PROVENANCE_KEYS}
+    )
 
     return CaseResponse(
+        **provenance.model_dump(),
         case_id=UUID(str(state["case_id"])),
         status=str(state["status"]),
         version=int(str(state.get("version", 1))),
@@ -254,8 +255,10 @@ def create_case(
     limiter.check(client_id_from_request(request))
 
     repository = CaseRepository(session)
-    workflow = CaseWorkflow(repository, TriageAndBriefService(settings))
-    return _response(workflow.run(payload.request_text))
+    workflow = CaseWorkflow(
+        repository, TriageAndBriefService(settings), JevDecisionService(settings)
+    )
+    return _response(workflow.run(payload.request_text, triage_mode=payload.triage_mode))
 
 
 @router.get("/{case_id}", response_model=CaseResponse)
@@ -351,7 +354,9 @@ def add_clarification(
     settings: Settings = Depends(get_settings),
 ) -> CaseResponse:
     """Add clarification from requester and re-analyze the case."""
-    workflow = CaseWorkflow(CaseRepository(session), TriageAndBriefService(settings))
+    workflow = CaseWorkflow(
+        CaseRepository(session), TriageAndBriefService(settings), JevDecisionService(settings)
+    )
     try:
         state = workflow.reanalyze(
             case_id,
